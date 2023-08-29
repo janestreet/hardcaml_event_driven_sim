@@ -1,0 +1,29 @@
+opam-version: "2.0"
+maintainer: "Jane Street developers"
+authors: ["Jane Street Group, LLC"]
+homepage: "https://github.com/janestreet/hardcaml_event_driven_sim"
+bug-reports: "https://github.com/janestreet/hardcaml_event_driven_sim/issues"
+dev-repo: "git+https://github.com/janestreet/hardcaml_event_driven_sim.git"
+doc: "https://ocaml.janestreet.com/ocaml-core/latest/doc/hardcaml_event_driven_sim/index.html"
+license: "MIT"
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml" {>= "4.14.0"}
+  "core"
+  "core_kernel"
+  "hardcaml"
+  "ppx_jane"
+  "dune"        {>= "2.0.0"}
+]
+available: arch != "arm32" & arch != "x86_32"
+synopsis: "Hardcaml Event Driven Simulator"
+description: "
+Event driven simulation for Hardcaml designs.
+
+The kernel library exposes a simulator modelled after VHDL simulation semantics.
+
+The main library provides means to convert a Hardcaml design into an event driven
+simulation model and write testbenches against it.
+"

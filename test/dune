@@ -1,0 +1,4 @@
+(library (name hardcaml_event_driven_sim_test)
+ (preprocess (pps ppx_deriving_hardcaml ppx_jane))
+ (libraries core hardcaml hardcaml_event_driven_sim hardcaml_networking
+  hardcaml_test))
