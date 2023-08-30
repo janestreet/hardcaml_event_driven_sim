@@ -34,8 +34,8 @@ module Make (Logic : Logic.S) = struct
           Sim.Process.create
             [ Sim.Signal.id port.signal ]
             (fun () ->
-               let data = Sim.Signal.read port.signal in
-               Hashtbl.set changes ~key:var ~data)
+              let data = Sim.Signal.read port.signal in
+              Hashtbl.set changes ~key:var ~data)
         in
         process, var)
     in

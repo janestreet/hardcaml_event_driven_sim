@@ -106,7 +106,7 @@ type simulation_callbacks =
 *)
 type t =
   { mutable delta_updates : Scheduled_event.t Queue.t
-  (* keep second queue to avoid allocating every delta step *)
+      (* keep second queue to avoid allocating every delta step *)
   ; mutable delta_updates_now : Scheduled_event.t Queue.t
   ; updates : Scheduled_event.t Pairing_heap.t
   ; mutable current_step : Delta_step.t
@@ -146,11 +146,11 @@ let maybe_invoke_on_change_callbacks (type value) (signal : value Signal.t) =
 ;;
 
 let apply_update
-      (type value)
-      simulator
-      (signal : value Signal.t)
-      (value : value)
-      ~process_id
+  (type value)
+  simulator
+  (signal : value Signal.t)
+  (value : value)
+  ~process_id
   =
   let (module Value : Value_S with type t = value) = signal.m in
   let new_current_value =
@@ -178,12 +178,12 @@ let apply_update
 ;;
 
 let[@inline] schedule_update
-               (type value)
-               t
-               (signal : value Signal.t)
-               (value : value)
-               ~delay
-               ~process_id
+  (type value)
+  t
+  (signal : value Signal.t)
+  (value : value)
+  ~delay
+  ~process_id
   =
   let (module Value : Value_S with type t = value) = Signal.m signal in
   Value.check_value_compatibility value;
@@ -384,7 +384,7 @@ let create processes =
 let delta_step t =
   Global_state.current_simulator := Some t;
   t.current_step
-  <- { t.current_step with Delta_step.delta = Delta_step.delta t.current_step + 1 };
+    <- { t.current_step with Delta_step.delta = Delta_step.delta t.current_step + 1 };
   let updates = t.delta_updates in
   t.delta_updates <- t.delta_updates_now;
   t.delta_updates_now <- updates;
@@ -444,12 +444,12 @@ module Debug = struct
 
   let at_start_of_time_step t f =
     t.simulation_callbacks.at_start_of_time_step
-    <- f :: t.simulation_callbacks.at_start_of_time_step
+      <- f :: t.simulation_callbacks.at_start_of_time_step
   ;;
 
   let at_end_of_time_step t f =
     t.simulation_callbacks.at_end_of_time_step
-    <- f :: t.simulation_callbacks.at_end_of_time_step
+      <- f :: t.simulation_callbacks.at_end_of_time_step
   ;;
 end
 

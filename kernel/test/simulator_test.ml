@@ -283,7 +283,7 @@ let%expect_test "register" =
   let reg ~clock ~src ~dst =
     Process.create [ !&clock ] (fun () ->
       if !!clock = 1 then (* rising edge *)
-        dst <-- !!src)
+                       dst <-- !!src)
   in
   let sig_a = Signal.create (module Value_default_zero) in
   let sig_clock = Signal.create (module Value_default_zero) in

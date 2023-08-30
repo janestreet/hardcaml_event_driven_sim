@@ -4,9 +4,9 @@ open Event_driven_sim.Simulator
 module type Logic_S = Logic.S
 
 module Make
-    (Logic : Logic_S)
-    (Input : Hardcaml.Interface.S)
-    (Output : Hardcaml.Interface.S) : sig
+  (Logic : Logic_S)
+  (Input : Hardcaml.Interface.S)
+  (Output : Hardcaml.Interface.S) : sig
   module Logic : Logic_S with type t = Logic.t
   module Ops : Ops.S with type comb := Logic.t
 

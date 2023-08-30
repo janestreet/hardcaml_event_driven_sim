@@ -33,9 +33,9 @@ let%expect_test "simple time" =
     create
       (Sim.Ops.processes ops
        @ [ Process.create [ !&sig_input ] (fun () ->
-         (sig_input <--- Sim.Logic.( +:. ) !!sig_input 1) ~delay:20)
+             (sig_input <--- Sim.Logic.( +:. ) !!sig_input 1) ~delay:20)
          ; Debug.print_signal "a" sig_a
-       ])
+         ])
   in
   Sim.Event_simulator.run ~time_limit:201 sim;
   [%expect

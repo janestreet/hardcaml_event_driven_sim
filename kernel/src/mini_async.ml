@@ -52,9 +52,9 @@ module Deferred_basic = struct
   let map =
     `Custom
       (fun t ~f ->
-         let result = Ivar.create () in
-         upon t (fun a -> Ivar.fill result (f a));
-         result)
+        let result = Ivar.create () in
+        upon t (fun a -> Ivar.fill result (f a));
+        result)
   ;;
 
   let unit = return ()

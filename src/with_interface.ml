@@ -4,9 +4,9 @@ open Event_driven_sim
 module type Logic_S = Logic.S
 
 module Make
-    (Logic : Logic_S)
-    (Input : Hardcaml.Interface.S)
-    (Output : Hardcaml.Interface.S) =
+  (Logic : Logic_S)
+  (Input : Hardcaml.Interface.S)
+  (Output : Hardcaml.Interface.S) =
 struct
   module Logic = Logic
   module Ops = Ops.Make (Logic)

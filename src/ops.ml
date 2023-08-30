@@ -72,20 +72,20 @@ module Make (Comb : Logic.S) = struct
     in
     [ ( List.filter_opt [ Some !&sim_clock; Option.map ~f:( !& ) sim_reset ]
       , fun () ->
-        if match sim_reset with
-          | Some sim_reset_v ->
-            Bool.( = ) (to_bool sim_reset_v) (edge_to_bool reg_reset_edge)
-          | None -> false
-        then sim_target <-- !!(value_or_zero sim_reset_value source_width)
-        else if is_edge sim_clock reg_clock_edge
-        then
-          if match sim_clear with
-            | Some sim_clear_v ->
-              Bool.( = ) (to_bool sim_clear_v) (level_to_bool reg_clear_level)
-            | None -> false
-          then sim_target <-- !!(value_or_zero sim_clear_value source_width)
-          else if to_bool sim_enable
-          then sim_target <-- !!sim_source )
+          if match sim_reset with
+             | Some sim_reset_v ->
+               Bool.( = ) (to_bool sim_reset_v) (edge_to_bool reg_reset_edge)
+             | None -> false
+          then sim_target <-- !!(value_or_zero sim_reset_value source_width)
+          else if is_edge sim_clock reg_clock_edge
+          then
+            if match sim_clear with
+               | Some sim_clear_v ->
+                 Bool.( = ) (to_bool sim_clear_v) (level_to_bool reg_clear_level)
+               | None -> false
+            then sim_target <-- !!(value_or_zero sim_clear_value source_width)
+            else if to_bool sim_enable
+            then sim_target <-- !!sim_source )
     ]
   ;;
 
@@ -114,13 +114,13 @@ module Make (Comb : Logic.S) = struct
     let sim_write_data = to_sim_signal write_data in
     ( [ !&sim_write_clock ]
     , fun () ->
-      if is_edge sim_write_clock Rising && to_bool sim_write_enable
-      then (
-        let address = Comb.to_int !!sim_write_address in
-        if Comb.compare memory_array.(address) !!sim_write_data <> 0
+        if is_edge sim_write_clock Rising && to_bool sim_write_enable
         then (
-          memory_array.(address) <- !!sim_write_data;
-          Simulator.Version_signal.increment memory_version)) )
+          let address = Comb.to_int !!sim_write_address in
+          if Comb.compare memory_array.(address) !!sim_write_data <> 0
+          then (
+            memory_array.(address) <- !!sim_write_data;
+            Simulator.Version_signal.increment memory_version)) )
   ;;
 
   let compile_multiport_mem ~memories ~to_sim_signal memory_uid write_ports =
@@ -135,8 +135,8 @@ module Make (Comb : Logic.S) = struct
       List.map read_ports ~f:(fun { Memory_read_port.read_address; read_data } ->
         ( [ Simulator.Signal.id read_address; Simulator.Signal.id memory_version ]
         , fun () ->
-          let address = Comb.to_int !!read_address in
-          read_data <-- array.(address) ))
+            let address = Comb.to_int !!read_address in
+            read_data <-- array.(address) ))
     in
     read_processes @ write_processes
   ;;
@@ -257,7 +257,7 @@ module Make (Comb : Logic.S) = struct
     let processes =
       Hardcaml.Signal_graph.fold graph ~init:[] ~f:(fun acc signal ->
         if Signal.is_empty signal
-        || (Signal.is_wire signal && Signal.is_empty (List.hd_exn (Signal.deps signal)))
+           || (Signal.is_wire signal && Signal.is_empty (List.hd_exn (Signal.deps signal)))
         then acc
         else (
           let processes =
@@ -285,9 +285,9 @@ module Make (Comb : Logic.S) = struct
   [@@deriving fields ~getters]
 
   let circuit_to_processes
-        ?(delay = fun _ -> 0)
-        ?(external_insts = inst_not_supported)
-        circuit
+    ?(delay = fun _ -> 0)
+    ?(external_insts = inst_not_supported)
+    circuit
     =
     let graph = Hardcaml.Circuit.signal_graph circuit in
     let signal_map = make_simulator_signals graph in

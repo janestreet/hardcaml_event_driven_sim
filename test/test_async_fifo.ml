@@ -5,9 +5,9 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   module Sim = Hardcaml_event_driven_sim.Make (Logic)
 
   module M = Hardcaml_networking.Async_fifo.Make (struct
-      let width = 4
-      let log2_depth = 3
-    end)
+    let width = 4
+    let log2_depth = 3
+  end)
 
   module I = M.I
   module O = M.O
