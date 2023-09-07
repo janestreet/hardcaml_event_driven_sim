@@ -204,6 +204,11 @@ module Make (Comb : Logic.S) = struct
       comb_process (fun () -> Simulator.Signal.read output_signal)
   ;;
 
+  let create_from_signal ~signal =
+    let width = Signal.width signal in
+    Comb.create_signal ~initial_value:(Comb.zero width) width
+  ;;
+
   let make_simulator_signals graph =
     Hardcaml.Signal_graph.fold
       graph
@@ -211,11 +216,8 @@ module Make (Comb : Logic.S) = struct
       ~f:(fun acc signal ->
         if not (Signal.is_empty signal)
         then (
-          let width = Signal.width signal in
-          Map.add_exn
-            acc
-            ~key:(Signal.uid signal)
-            ~data:(Comb.create_signal ~initial_value:(Comb.zero width) width))
+          let data = create_from_signal ~signal in
+          Map.add_exn acc ~key:(Signal.uid signal) ~data)
         else acc)
   ;;
 
@@ -280,7 +282,8 @@ module Make (Comb : Logic.S) = struct
 
   type t =
     { processes : Simulator.Process.t list
-    ; to_sim_signal : Hardcaml.Signal.t -> Comb.t Simulator.Signal.t
+    ; find_sim_signal : Hardcaml.Signal.t -> Comb.t Simulator.Signal.t
+    ; fake_sim_signal : Hardcaml.Signal.t -> Comb.t Simulator.Signal.t
     }
   [@@deriving fields ~getters]
 
@@ -291,7 +294,7 @@ module Make (Comb : Logic.S) = struct
     =
     let graph = Hardcaml.Circuit.signal_graph circuit in
     let signal_map = make_simulator_signals graph in
-    let to_sim_signal signal =
+    let find_sim_signal signal =
       match Map.find signal_map (Signal.uid signal) with
       | Some s -> s
       | None ->
@@ -301,7 +304,10 @@ module Make (Comb : Logic.S) = struct
               (signal : Signal.t)
               ~uid:(Signal.uid signal : Signal.Uid.t)]
     in
-    let processes = make_processes ~external_insts ~to_sim_signal ~delay graph in
-    { processes; to_sim_signal }
+    let fake_sim_signal signal = create_from_signal ~signal in
+    let processes =
+      make_processes ~external_insts ~to_sim_signal:find_sim_signal ~delay graph
+    in
+    { processes; find_sim_signal; fake_sim_signal }
   ;;
 end

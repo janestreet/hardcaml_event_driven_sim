@@ -18,8 +18,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     let open Async in
     let open Logic in
     let fifo = M.create (Hardcaml.Scope.create ~flatten_design:true ()) in
-    let { Sim_interface.processes; input; output } =
-      Sim_interface.create ~name:"fifo" fifo
+    let { Sim_interface.processes; input; output; internal = _ } =
+      Sim_interface.create fifo
     in
     let input = I.map input ~f:(fun v -> v.signal) in
     let output = O.map output ~f:(fun v -> v.signal) in
@@ -95,8 +95,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     let open Sim in
     let open Logic in
     let fifo = M.create (Hardcaml.Scope.create ~flatten_design:true ()) in
-    let { Sim_interface.processes; input; output } =
-      Sim_interface.create ~name:"fifo" fifo
+    let { Sim_interface.processes; input; output; internal = _ } =
+      Sim_interface.create fifo
     in
     let expected_now = ref (of_string "0001") in
     let input = I.map input ~f:(fun v -> v.signal) in

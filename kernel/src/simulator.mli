@@ -115,14 +115,16 @@ module Async : sig
   module Ivar = Mini_async.Ivar
 
   (** Create a process that repeatedly run a given function. *)
-  val create_process : (unit -> unit Mini_async.Deferred.t) -> Process.t
+  val create_process : (unit -> unit Deferred.t) -> Process.t
 
   (** [delay n] returns deferred that will be filled after [n] time steps. *)
-  val delay : int -> unit Mini_async.Deferred.t
+  val delay : int -> unit Deferred.t
 
   (** [wait_for_change sig] returns deferred that will be filled when
       [sig] changes for the first time. *)
-  val wait_for_change : Signal_id.t -> unit Mini_async.Deferred.t
+  val wait_for_change : Signal_id.t -> unit Deferred.t
+
+  val wait_forever : unit -> unit Deferred.t
 
   (** Execute given function in an infinite loop. *)
   val forever : (unit -> unit Deferred.t) -> unit Deferred.t

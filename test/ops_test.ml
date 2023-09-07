@@ -13,7 +13,7 @@ let%expect_test "simple comb" =
   let outputs = Hardcaml.Circuit.outputs circuit in
   let a = List.nth_exn outputs 0 in
   Sim.Event_simulator.stabilise sim;
-  print_s ([%sexp_of: Sim.Logic.t] !!(Sim.Ops.to_sim_signal ops a));
+  print_s ([%sexp_of: Sim.Logic.t] !!(Sim.Ops.find_sim_signal ops a));
   [%expect {| 11 |}]
 ;;
 
@@ -25,9 +25,9 @@ let%expect_test "simple time" =
   in
   let ops = Sim.Ops.circuit_to_processes circuit in
   let inputs = Hardcaml.Circuit.inputs circuit in
-  let sig_input = Sim.Ops.to_sim_signal ops (List.nth_exn inputs 0) in
+  let sig_input = Sim.Ops.find_sim_signal ops (List.nth_exn inputs 0) in
   let outputs = Hardcaml.Circuit.outputs circuit in
-  let sig_a = Sim.Ops.to_sim_signal ops (List.nth_exn outputs 0) in
+  let sig_a = Sim.Ops.find_sim_signal ops (List.nth_exn outputs 0) in
   let open Sim.Event_simulator in
   let sim =
     create
@@ -51,4 +51,50 @@ let%expect_test "simple time" =
     t=160 a=01
     t=180 a=10
     t=200 a=11 |}]
+;;
+
+let%expect_test "signals optimized out" =
+  let open struct
+    module I = struct
+      type 'a t =
+        { a : 'a [@bits 2]
+        ; b : 'a [@bits 2]
+        }
+      [@@deriving sexp_of, hardcaml]
+    end
+
+    module O = struct
+      type 'a t = { c : 'a [@bits 2] } [@@deriving sexp_of, hardcaml]
+    end
+
+    let f i = { O.c = i.I.a +: of_string "01" }
+  end in
+  let open Sim.Logic in
+  let open Sim.Event_simulator in
+  let module Sim_interface = Sim.With_interface (I) (O) in
+  let { Sim_interface.processes; input; output; internal = _ } = Sim_interface.create f in
+  let input = I.map input ~f:(fun v -> v.signal) in
+  let output = O.map output ~f:(fun v -> v.signal) in
+  let sim =
+    create
+      (processes
+       @ [ Debug.print_signal "c" output.O.c
+         ; Process.create [] (fun () -> input.I.b <-- of_string "10")
+         ; Process.create [ !&(input.a) ] (fun () ->
+             (input.I.a <--- !!(input.I.a) +:. 1) ~delay:10)
+         ])
+  in
+  run ~time_limit:100 sim;
+  [%expect
+    {|
+    t=0 c=01
+    t=10 c=10
+    t=20 c=11
+    t=30 c=00
+    t=40 c=01
+    t=50 c=10
+    t=60 c=11
+    t=70 c=00
+    t=80 c=01
+    t=90 c=10 |}]
 ;;

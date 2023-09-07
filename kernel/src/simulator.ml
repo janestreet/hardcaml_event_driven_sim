@@ -283,6 +283,12 @@ module Async = struct
     preserve_process_id (Ivar.read v)
   ;;
 
+  let wait_forever () =
+    (* Create a deferred that is never filled.  This will never return. *)
+    let v = Ivar.create () in
+    preserve_process_id (Ivar.read v)
+  ;;
+
   let create_process f =
     let rec run () = Deferred.upon (f ()) run in
     run

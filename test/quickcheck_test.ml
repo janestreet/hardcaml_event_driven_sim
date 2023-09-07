@@ -38,14 +38,14 @@ let event_driven_sim_eval inputs circuit =
   let open Event_driven_sim.Simulator in
   let open Event_driven_sim.Simulator.Async in
   let ops = Sim.Ops.circuit_to_processes circuit in
-  let to_sim_signal = Sim.Ops.to_sim_signal ops in
+  let find_sim_signal = Sim.Ops.find_sim_signal ops in
   let sim_clock_opt =
-    find_by_name "clock" (Circuit.inputs circuit) |> Option.map ~f:to_sim_signal
+    find_by_name "clock" (Circuit.inputs circuit) |> Option.map ~f:find_sim_signal
   in
   let sim_reset_opt =
-    find_by_name "reset" (Circuit.inputs circuit) |> Option.map ~f:to_sim_signal
+    find_by_name "reset" (Circuit.inputs circuit) |> Option.map ~f:find_sim_signal
   in
-  let sim_out = to_sim_signal (List.hd_exn (Circuit.outputs circuit)) in
+  let sim_out = find_sim_signal (List.hd_exn (Circuit.outputs circuit)) in
   let sim_clock =
     match sim_clock_opt with
     | Some sim_clock -> sim_clock
@@ -70,7 +70,7 @@ let event_driven_sim_eval inputs circuit =
   let set_inputs values =
     List.iter values ~f:(fun (name, value) ->
       let sim_input =
-        find_by_name name (Circuit.inputs circuit) |> Option.value_exn |> to_sim_signal
+        find_by_name name (Circuit.inputs circuit) |> Option.value_exn |> find_sim_signal
       in
       (* we need to set inputs after all activity from previous cycle finishes, but before
          rising edge of the next one *)

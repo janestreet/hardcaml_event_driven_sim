@@ -5,7 +5,13 @@ module type S = sig
   type comb
 
   val processes : t -> Event_driven_sim.Simulator.Process.t list
-  val to_sim_signal : t -> Hardcaml.Signal.t -> comb Event_driven_sim.Simulator.Signal.t
+
+  (** Find the simulation signal associated with the given Hardcaml signal. Raises if the
+      signal does not exist within the circuit. *)
+  val find_sim_signal : t -> Hardcaml.Signal.t -> comb Event_driven_sim.Simulator.Signal.t
+
+  (** Construct a fake simulation signal for the given Hardcaml signal. *)
+  val fake_sim_signal : t -> Hardcaml.Signal.t -> comb Event_driven_sim.Simulator.Signal.t
 
   (** Compiles Hardcaml circuit into a Event_driven_sim process list.
       Returns the list and a mapping from Hardcaml signals into Event_driven_sim signals.
