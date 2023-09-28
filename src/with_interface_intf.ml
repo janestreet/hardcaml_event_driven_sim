@@ -49,12 +49,17 @@ struct
       -> Logic.t Port.t Output.t
       -> Event_driven_sim.Simulator.Process.t list
 
+    type testbench =
+      { ports_and_processes : t
+      ; simulator : Event_driven_sim.Simulator.t
+      }
+
     (** Create an event driven simulation with the provided processes. *)
     val with_processes
       :  ?config:Config.t
       -> Hardcaml.Interface.Create_fn(Input)(Output).t
       -> testbench_processes
-      -> Event_driven_sim.Simulator.t
+      -> testbench
 
     (** Create an event driven simulation and VCD trace file and attach it together. *)
     val with_vcd
@@ -62,7 +67,7 @@ struct
       -> vcd:Out_channel.t
       -> Hardcaml.Interface.Create_fn(Input)(Output).t
       -> testbench_processes
-      -> Event_driven_sim.Simulator.t
+      -> testbench
 
     (** Like [with_vcd] except the vcd is generated only if a file name is provided and
         the environment variable [EXPECT_TEST_WAVEFORM] exists. *)
@@ -71,7 +76,7 @@ struct
       -> ?vcd:string
       -> Hardcaml.Interface.Create_fn(Input)(Output).t
       -> testbench_processes
-      -> Event_driven_sim.Simulator.t
+      -> testbench
   end
 end
 

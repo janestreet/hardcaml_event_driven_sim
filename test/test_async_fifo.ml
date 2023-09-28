@@ -4,7 +4,7 @@ open Core
 module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   module Sim = Hardcaml_event_driven_sim.Make (Logic)
 
-  module M = Hardcaml_networking.Async_fifo.Make (struct
+  module M = Hardcaml.Async_fifo.Make (struct
     let width = 4
     let log2_depth = 3
   end)
@@ -17,7 +17,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     let open Sim.Event_simulator in
     let open Async in
     let open Logic in
-    let fifo = M.create (Hardcaml.Scope.create ~flatten_design:true ()) in
+    let fifo = M.create ~scope:(Hardcaml.Scope.create ~flatten_design:true ()) in
     let { Sim_interface.processes; input; output; internal = _ } =
       Sim_interface.create fifo
     in
@@ -94,7 +94,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     let module Sim_interface = Hardcaml_event_driven_sim.With_interface (Logic) (I) (O) in
     let open Sim in
     let open Logic in
-    let fifo = M.create (Hardcaml.Scope.create ~flatten_design:true ()) in
+    let fifo = M.create ~scope:(Hardcaml.Scope.create ~flatten_design:true ()) in
     let { Sim_interface.processes; input; output; internal = _ } =
       Sim_interface.create fifo
     in

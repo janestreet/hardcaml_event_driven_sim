@@ -109,23 +109,32 @@ struct
     -> Logic.t Port.t Output.t
     -> Event_driven_sim.Simulator.Process.t list
 
+  type testbench =
+    { ports_and_processes : t
+    ; simulator : Event_driven_sim.Simulator.t
+    }
+
   let with_processes ?config f testbench =
-    let { processes; input; output; internal = _ } = create ?config f in
+    let ({ processes; input; output; internal = _ } as ports_and_processes) =
+      create ?config f
+    in
     let testbench_processes = testbench input output in
-    let sim = Event_driven_sim.Simulator.create (processes @ testbench_processes) in
-    sim
+    let simulator = Event_driven_sim.Simulator.create (processes @ testbench_processes) in
+    { ports_and_processes; simulator }
   ;;
 
   let with_vcd ?config ~vcd f testbench =
-    let { processes; input; output; internal } = create ?config f in
+    let ({ processes; input; output; internal } as ports_and_processes) =
+      create ?config f
+    in
     let vcd = Vcd.create vcd (Input.to_list input @ Output.to_list output @ internal) in
     let testbench_processes = testbench input output in
-    let sim =
+    let simulator =
       Event_driven_sim.Simulator.create
         (processes @ Vcd.processes vcd @ testbench_processes)
     in
-    Vcd.attach_to_simulator vcd sim;
-    sim
+    Vcd.attach_to_simulator vcd simulator;
+    { ports_and_processes; simulator }
   ;;
 
   let expect ?config ?vcd f testbench =

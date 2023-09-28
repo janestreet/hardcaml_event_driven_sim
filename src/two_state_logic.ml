@@ -20,10 +20,6 @@ let create_signal ?initial_value ?resolution width =
               "attempting to assign value with wrong width" (new_value : t) (width : int)]
       ;;
 
-      let initial_value =
-        match initial_value with
-        | Some v -> v
-        | None -> zero width
-      ;;
+      let initial_value = initial_value |> Option.value ~default:(zero width)
     end)
 ;;

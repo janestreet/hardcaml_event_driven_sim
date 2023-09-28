@@ -234,7 +234,7 @@ let create_signal ?initial_value ?(resolution = `Unresolved) width =
   Event_driven_sim.Simulator.Signal.create
     (module For_simulator (struct
       let width = width
-      let initial_value = initial_value |> Option.value ~default:(zero width)
+      let initial_value = initial_value |> Option.value ~default:(don't_care width)
       let resolution = resolution
     end))
 ;;

@@ -85,7 +85,7 @@ let%expect_test "adder - vcd" =
   let open Four_state in
   let open Four_state.Sim.Event_simulator in
   let module Sim_interface = Sim.With_interface (I) (O) in
-  let sim =
+  let { Sim_interface.simulator = sim; _ } =
     Sim_interface.with_vcd
       ~config:Sim.Config.trace_all
       ~vcd:Out_channel.stdout
