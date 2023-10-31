@@ -10,11 +10,11 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
       { a : 'a [@bits bits]
       ; b : 'a [@bits bits]
       }
-    [@@deriving sexp_of, hardcaml]
+    [@@deriving hardcaml]
   end
 
   module O = struct
-    type 'a t = { c : 'a [@bits bits] } [@@deriving sexp_of, hardcaml]
+    type 'a t = { c : 'a [@bits bits] } [@@deriving hardcaml]
   end
 
   let f i = { O.c = i.I.a +: i.I.b }

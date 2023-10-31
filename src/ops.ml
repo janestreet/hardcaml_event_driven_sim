@@ -194,7 +194,6 @@ module Make (Comb : Logic.S) = struct
         signal
         ~source:(List.hd_exn (Signal.deps signal))
         register
-    | Mem _ -> raise_s [%message "Mem signals are unsupported" (signal : Signal.t)]
     | Multiport_mem { write_ports; _ } ->
       compile_multiport_mem ~memories ~to_sim_signal (Signal.uid signal) write_ports
     | Mem_read_port _ -> []

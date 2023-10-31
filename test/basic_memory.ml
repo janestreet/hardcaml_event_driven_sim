@@ -10,13 +10,13 @@ module I = struct
     ; write_clock : 'a [@bits 1]
     ; write_data : 'a [@bits 8]
     }
-  [@@deriving sexp_of, hardcaml]
+  [@@deriving hardcaml]
 end
 
 let size = 15
 
 module O = struct
-  type 'a t = { read_data : 'a [@bits 8] } [@@deriving sexp_of, hardcaml]
+  type 'a t = { read_data : 'a [@bits 8] } [@@deriving hardcaml]
 end
 
 let f i =

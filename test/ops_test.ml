@@ -60,11 +60,11 @@ let%expect_test "signals optimized out" =
         { a : 'a [@bits 2]
         ; b : 'a [@bits 2]
         }
-      [@@deriving sexp_of, hardcaml]
+      [@@deriving hardcaml]
     end
 
     module O = struct
-      type 'a t = { c : 'a [@bits 2] } [@@deriving sexp_of, hardcaml]
+      type 'a t = { c : 'a [@bits 2] } [@@deriving hardcaml]
     end
 
     let f i = { O.c = i.I.a +: of_string "01" }

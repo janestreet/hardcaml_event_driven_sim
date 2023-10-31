@@ -11,11 +11,11 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
       ; amount : 'a [@bits 4]
       ; clock : 'a [@bits 1]
       }
-    [@@deriving sexp_of, hardcaml]
+    [@@deriving hardcaml]
   end
 
   module O = struct
-    type 'a t = { total : 'a [@bits 8] } [@@deriving sexp_of, hardcaml]
+    type 'a t = { total : 'a [@bits 8] } [@@deriving hardcaml]
   end
 
   (* Increment [total] by [amount] whenever [incr] is high.  Whenever [total] overflows, set

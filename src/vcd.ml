@@ -14,7 +14,7 @@ module Make (Logic : Logic.S) = struct
   let signal_name s =
     match Signal.names s with
     | h :: _ -> h
-    | [] -> "__" ^ Int64.to_string (Signal.uid s)
+    | [] -> "__" ^ Signal.Uid.to_string (Signal.uid s)
   ;;
 
   let create chan (signals_to_trace : Logic.t Port.t list) =
