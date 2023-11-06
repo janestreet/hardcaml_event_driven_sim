@@ -38,8 +38,12 @@ struct
     (** Returns a process that drives a given signal as a clock with a given time between
         transitions. *)
     val create_clock
-      :  Logic.t Event_driven_sim.Simulator.Signal.t
+      :  ?phase:int
+           (** the offset of the first rising edge of the clock relative to the start of the
+          simulation. It must be within the range [0, 2 * time). The default value is
+          [time], so that all clocks start on the falling edge. *)
       -> time:int
+      -> Logic.t Event_driven_sim.Simulator.Signal.t
       -> Event_driven_sim.Simulator.Process.t
 
     val create : ?config:Config.t -> Hardcaml.Interface.Create_fn(Input)(Output).t -> t

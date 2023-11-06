@@ -24,10 +24,41 @@ struct
     ; internal : Logic.t Port.t list
     }
 
-  let create_clock signal ~time =
+  let create_clock ?phase ~time signal =
     let open Simulator in
+    let phase = Option.value phase ~default:time in
+    if phase < 0 || phase >= 2 * time
+    then raise_s [%message "phase must be within [0, 2*time)" (phase : int) (time : int)];
+    let initial_iteration = ref true in
+    let toggle ~delay = (signal <--- Logic.( ~: ) !!signal) ~delay in
     Simulator.Process.create [ !&signal ] (fun () ->
-      (signal <--- Logic.( ~: ) !!signal) ~delay:time)
+      match !initial_iteration with
+      | true ->
+        initial_iteration := false;
+        if phase = 0
+        then
+          raise_s
+            [%message
+              "We don't currently deal with the case where the first rising edge is \
+               exactly at time 0. This requires some thought as to what the correct \
+               behavior is - for example, take a look at [test/basic_memory.ml] in this \
+               folder. In the current model, where clocks start out low, we align all of \
+               our top level inputs to occur on the falling edge, so the change always \
+               occurs at the next rising edge. In a model where the clock is 1 at time \
+               0, it is less clear what is the correct behavior if you drive the input \
+               at time 0."]
+        else if phase <= time
+        then (
+          if Logic.is_vdd !!signal
+          then
+            raise_s [%message "clock initial value is vdd; should be gnd" (phase : int)];
+          toggle ~delay:phase)
+        else (
+          if Logic.is_gnd !!signal
+          then
+            raise_s [%message "clock initial value is gnd; should be vdd" (phase : int)];
+          toggle ~delay:(phase - time))
+      | false -> toggle ~delay:time)
   ;;
 
   let internal_ports circuit ~is_internal_port =
