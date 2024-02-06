@@ -1,3 +1,6 @@
-(library (name event_driven_sim)
+(library
+ (name event_driven_sim)
  (public_name hardcaml_event_driven_sim.kernel)
- (libraries core core_kernel.pairing_heap) (preprocess (pps ppx_jane)))
+ (libraries core core_kernel.pairing_heap)
+ (preprocess
+  (pps ppx_jane)))

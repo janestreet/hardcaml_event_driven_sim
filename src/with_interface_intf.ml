@@ -38,10 +38,10 @@ struct
     (** Returns a process that drives a given signal as a clock with a given time between
         transitions. *)
     val create_clock
-      :  ?phase:int
-           (** the offset of the first rising edge of the clock relative to the start of the
-          simulation. It must be within the range [0, 2 * time). The default value is
-          [time], so that all clocks start on the falling edge. *)
+      :  ?initial_delay:int
+           (** The offset of the first rising edge of the clock relative to the start of the
+          simulation. The default value is [time], so that all clocks start on the falling
+          edge. *)
       -> time:int
       -> Logic.t Event_driven_sim.Simulator.Signal.t
       -> Event_driven_sim.Simulator.Process.t
@@ -72,6 +72,12 @@ struct
       -> Hardcaml.Interface.Create_fn(Input)(Output).t
       -> testbench_processes
       -> testbench
+
+    val with_waveterm
+      :  ?config:Config.t
+      -> Hardcaml.Interface.Create_fn(Input)(Output).t
+      -> testbench_processes
+      -> Waveterm.Waveform.t * testbench
 
     (** Like [with_vcd] except the vcd is generated only if a file name is provided and
         the environment variable [EXPECT_TEST_WAVEFORM] exists. *)

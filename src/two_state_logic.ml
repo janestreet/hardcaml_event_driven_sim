@@ -1,6 +1,7 @@
 open! Core
 include Hardcaml.Bits
 
+let to_bits_exn = Fn.id
 let of_bits = Fn.id
 
 let create_signal ?initial_value ?resolution width =

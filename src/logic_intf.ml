@@ -3,6 +3,7 @@ open! Core
 module type S = sig
   include Hardcaml.Comb.S
 
+  val to_bits_exn : t -> Hardcaml.Bits.t
   val of_bits : Hardcaml.Bits.t -> t
   val compare : t -> t -> int
 

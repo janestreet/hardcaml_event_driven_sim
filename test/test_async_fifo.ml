@@ -89,63 +89,149 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     t=660 valid=0 |}]
   ;;
 
-  let reader_writer_test ~read_clock_time ~write_clock_time =
+  let reader_writer_test
+    ?(print_waves = false)
+    ?use_negedge_sync_chain
+    ()
+    ~read_clock_time
+    ~write_clock_time
+    =
     let module Sim = Event_driven_sim.Simulator in
     let module Sim_interface = Hardcaml_event_driven_sim.With_interface (Logic) (I) (O) in
     let open Sim in
     let open Logic in
-    let fifo = M.create ~scope:(Hardcaml.Scope.create ~flatten_design:true ()) in
-    let { Sim_interface.processes; input; output; internal = _ } =
-      Sim_interface.create fifo
+    let fifo =
+      M.create
+        ?use_negedge_sync_chain
+        ~scope:(Hardcaml.Scope.create ~flatten_design:true ())
     in
     let expected_now = ref (of_string "0001") in
-    let input = I.map input ~f:(fun v -> v.signal) in
-    let output = O.map output ~f:(fun v -> v.signal) in
-    let sim =
-      Sim.create
-        (processes
-         @ [ Sim.Process.create [] (fun () -> input.I.read_enable <-- of_string "1")
-           ; Sim_interface.create_clock input.I.clock_read ~time:read_clock_time
-           ; Sim_interface.create_clock input.I.clock_write ~time:write_clock_time
-           ; Sim.Process.create [ !&(input.I.clock_write) ] (fun () ->
-               if Logic.compare !!(input.I.data_in) (of_string "1111") = 0
-               then input.I.write_enable <-- of_string "0"
-               else (
-                 input.I.write_enable <-- of_string "1";
-                 if is_gnd !!(input.I.clock_write)
-                 then
-                   if is_gnd !!(output.O.full)
-                   then input.I.data_in <-- !!(input.I.data_in) +:. 1))
-           ; Sim.Process.create [ !&(input.I.clock_read) ] (fun () ->
-               if is_gnd !!(input.I.clock_read)
-               then
-                 if is_vdd !!(output.O.valid)
-                 then (
-                   let current_value = !!(output.O.data_out) in
-                   if not (Logic.compare current_value !expected_now = 0)
-                   then
-                     printf
-                       !"invalid value: %{Logic} %{Logic}\n"
-                       current_value
-                       !expected_now
-                   else expected_now := !expected_now +:. 1))
-           ])
+    let waves, { Sim_interface.simulator = sim; _ } =
+      Sim_interface.with_waveterm
+        ~config:Hardcaml_event_driven_sim.Config.trace_all
+        fifo
+        (fun input output ->
+        let input = I.map input ~f:(fun v -> v.signal) in
+        let output = O.map output ~f:(fun v -> v.signal) in
+        [ Sim.Process.create [] (fun () -> input.I.read_enable <-- of_string "1")
+        ; Sim_interface.create_clock input.I.clock_read ~time:read_clock_time
+        ; Sim_interface.create_clock input.I.clock_write ~time:write_clock_time
+        ; Sim.Process.create [ !&(input.I.clock_write) ] (fun () ->
+            if Logic.compare !!(input.I.data_in) (of_string "1111") = 0
+            then input.I.write_enable <-- of_string "0"
+            else (
+              input.I.write_enable <-- of_string "1";
+              if is_gnd !!(input.I.clock_write)
+              then
+                if is_gnd !!(output.O.full)
+                then input.I.data_in <-- !!(input.I.data_in) +:. 1))
+        ; Sim.Process.create [ !&(input.I.clock_read) ] (fun () ->
+            if is_gnd !!(input.I.clock_read)
+            then
+              if is_vdd !!(output.O.valid)
+              then (
+                let current_value = !!(output.O.data_out) in
+                if not (Logic.compare current_value !expected_now = 0)
+                then
+                  printf !"invalid value: %{Logic} %{Logic}\n" current_value !expected_now
+                else expected_now := !expected_now +:. 1))
+        ])
     in
     Sim.run ~time_limit:100000 sim;
-    printf !"finish: %{Logic}\n" !expected_now
+    printf !"finish: %{Logic}\n" !expected_now;
+    if print_waves
+    then
+      let open Hardcaml_waveterm_kernel in
+      let display_rules =
+        Display_rule.
+          [ port_name_is "clock_read" ~wave_format:Bit
+          ; port_name_is "clock_write" ~wave_format:Bit
+          ; port_name_is ~alignment:Right "data_in" ~wave_format:Hex
+          ; port_name_is ~alignment:Right "read_enable" ~wave_format:Bit
+          ; port_name_is ~alignment:Right "write_enable" ~wave_format:Bit
+          ; port_name_is ~alignment:Right "almost_empty" ~wave_format:Bit
+          ; port_name_is ~alignment:Right "data_out" ~wave_format:Hex
+          ; port_name_is ~alignment:Right "full" ~wave_format:Bit
+          ; port_name_is ~alignment:Right "valid" ~wave_format:Bit
+          ; port_name_is ~alignment:Right "raddr_rd" ~wave_format:Hex
+          ; port_name_is ~alignment:Right "raddr_wd_ff_0" ~wave_format:Hex
+          ; port_name_is ~alignment:Right "raddr_wd" ~wave_format:Hex
+          ; port_name_is ~alignment:Right "waddr_wd" ~wave_format:Hex
+          ; port_name_is ~alignment:Right "waddr_rd_ff_0" ~wave_format:Hex
+          ; port_name_is ~alignment:Right "waddr_rd" ~wave_format:Hex
+          ]
+      in
+      Hardcaml_event_driven_sim.Waveterm.Waveform.print
+        waves
+        ~display_rules
+        ~wave_width:(-40)
+        ~display_width:130
+        ~display_height:40
   ;;
 
   let%expect_test "reader/writer case" =
-    reader_writer_test ~read_clock_time:150 ~write_clock_time:320;
+    reader_writer_test () ~read_clock_time:150 ~write_clock_time:320;
     [%expect {| finish: 0000 |}];
-    reader_writer_test ~read_clock_time:300 ~write_clock_time:150;
+    reader_writer_test () ~read_clock_time:300 ~write_clock_time:150;
     [%expect {| finish: 0000 |}];
-    reader_writer_test ~read_clock_time:300 ~write_clock_time:160;
+    reader_writer_test () ~read_clock_time:300 ~write_clock_time:160;
     [%expect {| finish: 0000 |}];
-    reader_writer_test ~read_clock_time:300 ~write_clock_time:290;
+    reader_writer_test () ~read_clock_time:300 ~write_clock_time:290;
     [%expect {| finish: 0000 |}];
-    reader_writer_test ~read_clock_time:300 ~write_clock_time:1000;
+    reader_writer_test () ~read_clock_time:300 ~write_clock_time:1000;
     [%expect {| finish: 0000 |}]
+  ;;
+
+  let%expect_test "negedge waveform" =
+    reader_writer_test
+      ~print_waves:true
+      ~use_negedge_sync_chain:true
+      ()
+      ~read_clock_time:300
+      ~write_clock_time:150;
+    [%expect
+      {|
+      finish: 0000
+      ┌Signals───────────┐┌Waves───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+      │clock_read        ││       ╥───────┐      ╥───────┐      ╥───────┐      ╥───────┐      ╥───────┐      ╥───────┐      ╥───────┐  │
+      │                  ││───────╨       └──────╨       └──────╨       └──────╨       └──────╨       └──────╨       └──────╨       └──│
+      │clock_write       ││   ╥───╥   ╥───┐  ╥───╥   ╥───┐  ╥───╥   ╥───┐  ╥───╥   ╥───┐  ╥───╥   ╥───┐  ╥───╥   ╥───┐  ╥───╥   ╥───┐  │
+      │                  ││───╨   ╨───╨   └──╨   ╨───╨   └──╨   ╨───╨   └──╨   ╨───╨   └──╨   ╨───╨   └──╨   ╨───╨   └──╨   ╨───╨   └──│
+      │                  ││───────╥───────┬──────╥───────┬──────╥───────┬──────╥──────────────╥──────────────╥──────────────╥──────────│
+      │data_in           ││ 1     ║ 2     │3     ║ 4     │5     ║ 6     │7     ║ 8            ║ 9            ║ A            ║ B        │
+      │                  ││───────╨───────┴──────╨───────┴──────╨───────┴──────╨──────────────╨──────────────╨──────────────╨──────────│
+      │read_enable       ││────────────────────────────────────────────────────────────────────────────────────────────────────────────│
+      │                  ││                                                                                                            │
+      │write_enable      ││────────────────────────────────────────────────────────────────────────────────────────────────────────────│
+      │                  ││                                                                                                            │
+      │almost_empty      ││─────────────────────────────────────╥                                                                      │
+      │                  ││                                     ╨──────────────────────────────────────────────────────────────────────│
+      │                  ││───────╥─────────────────────────────╥──────────────╥──────────────╥──────────────╥──────────────╥──────────│
+      │data_out          ││ 0     ║ 1                           ║ 2            ║ 3            ║ 4            ║ 5            ║ 6        │
+      │                  ││───────╨─────────────────────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────│
+      │full              ││                                                        ╥──────╥       ╥──────╥       ╥──────╥       ╥──────│
+      │                  ││────────────────────────────────────────────────────────╨      ╨───────╨      ╨───────╨      ╨───────╨      │
+      │valid             ││                      ╥─────────────────────────────────────────────────────────────────────────────────────│
+      │                  ││──────────────────────╨                                                                                     │
+      │                  ││─────────────────────────────────────╥──────────────╥──────────────╥──────────────╥──────────────╥──────────│
+      │raddr_rd          ││ 0                                   ║ 1            ║ 3            ║ 2            ║ 6            ║ 7        │
+      │                  ││─────────────────────────────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────│
+      │                  ││─────────────────────────────────────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──│
+      │raddr_wd_ff_0     ││ 0                                           │1             │3             │2             │6             │7 │
+      │                  ││─────────────────────────────────────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──│
+      │                  ││────────────────────────────────────────────────╥──────────────╥──────────────╥──────────────╥──────────────│
+      │raddr_wd          ││ 0                                              ║ 1            ║ 3            ║ 2            ║ 6            │
+      │                  ││────────────────────────────────────────────────╨──────────────╨──────────────╨──────────────╨──────────────│
+      │                  ││───╥───────╥──────╥───────╥──────╥───────╥──────╥───────╥──────────────╥──────────────╥──────────────╥──────│
+      │waddr_wd          ││ 0 ║ 1     ║ 3    ║ 2     ║ 6    ║ 7     ║ 5    ║ 4     ║ 0            ║ 1            ║ 3            ║ 2    │
+      │                  ││───╨───────╨──────╨───────╨──────╨───────╨──────╨───────╨──────────────╨──────────────╨──────────────╨──────│
+      │                  ││───────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──│
+      │waddr_rd_ff_0     ││ 0             │3             │6             │5             │0             │1             │3             │2 │
+      │                  ││───────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──│
+      │                  ││──────────────────────╥──────────────╥──────────────╥──────────────╥──────────────╥──────────────╥──────────│
+      │waddr_rd          ││ 0                    ║ 3            ║ 6            ║ 5            ║ 0            ║ 1            ║ 3        │
+      │                  ││──────────────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────│
+      └──────────────────┘└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ |}]
   ;;
 end
 

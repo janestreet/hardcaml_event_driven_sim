@@ -11,6 +11,7 @@ let ( <--- ) = Simulator.( <--- )
 
 module Make (Comb : Logic.S) = struct
   module Signal = Hardcaml.Signal
+  module Reg_spec = Hardcaml.Reg_spec
 
   let to_bool sim_signal =
     let bits = ( !! ) sim_signal in
@@ -40,7 +41,7 @@ module Make (Comb : Logic.S) = struct
   ;;
 
   let compile_reg ~to_sim_signal signal ~source reg =
-    let { Signal.reg_clock
+    let { Reg_spec.reg_clock
         ; reg_clock_edge
         ; reg_reset
         ; reg_reset_edge
@@ -105,7 +106,7 @@ module Make (Comb : Logic.S) = struct
   end
 
   let compile_write_port ~to_sim_signal ~memory_version memory_array write_port =
-    let { Hardcaml.Ram.Write_port.write_clock; write_address; write_enable; write_data } =
+    let { Hardcaml.Write_port.write_clock; write_address; write_enable; write_data } =
       write_port
     in
     let sim_write_clock = to_sim_signal write_clock in
@@ -142,11 +143,10 @@ module Make (Comb : Logic.S) = struct
   ;;
 
   let process_for_signal ~to_sim_signal ~external_insts ~delay ~memories signal =
-    let get_dep num = to_sim_signal (List.nth_exn (Signal.deps signal) num) in
     let[@inline] comb_process (eval_f : unit -> Comb.t) =
       let sim_signal = to_sim_signal signal in
       let deps =
-        List.map ~f:to_sim_signal (Signal.deps signal) |> List.map ~f:Simulator.Signal.id
+        Signal.Type.Deps.map signal ~f:(Fn.compose Simulator.Signal.id to_sim_signal)
       in
       [ (deps, fun () -> ( <--- ) sim_signal (eval_f ()) ~delay) ]
     in
@@ -182,23 +182,18 @@ module Make (Comb : Logic.S) = struct
        | Signal_lt -> op2 Comb.( <: ))
         arg_a
         arg_b
-    | Wire _ ->
-      let src = get_dep 0 in
+    | Wire { driver; _ } ->
+      let src = to_sim_signal !driver in
       comb_process (fun () -> Simulator.Signal.read src)
-    | Select { high; low; _ } ->
-      let d = get_dep 0 in
+    | Select { arg; high; low; _ } ->
+      let d = to_sim_signal arg in
       comb_process (fun () -> Comb.select (Simulator.Signal.read d) high low)
-    | Reg { register; _ } ->
-      compile_reg
-        ~to_sim_signal
-        signal
-        ~source:(List.hd_exn (Signal.deps signal))
-        register
+    | Reg { register; d; _ } -> compile_reg ~to_sim_signal signal ~source:d register
     | Multiport_mem { write_ports; _ } ->
       compile_multiport_mem ~memories ~to_sim_signal (Signal.uid signal) write_ports
     | Mem_read_port _ -> []
-    | Inst _ ->
-      let inputs = List.map ~f:to_sim_signal (Signal.deps signal) in
+    | Inst { instantiation = { inst_inputs; _ }; _ } ->
+      let inputs = List.map ~f:(Fn.compose to_sim_signal snd) inst_inputs in
       let output_signal = external_insts signal ~inputs in
       comb_process (fun () -> Simulator.Signal.read output_signal)
   ;;
@@ -228,7 +223,7 @@ module Make (Comb : Logic.S) = struct
         ~f:(fun acc signal ->
           match signal with
           | Multiport_mem { size; write_ports; _ } ->
-            let data_width = Signal.width write_ports.(0).Signal.write_data in
+            let data_width = Signal.width write_ports.(0).write_data in
             Map.add_exn
               acc
               ~key:(Signal.uid signal)
@@ -258,7 +253,8 @@ module Make (Comb : Logic.S) = struct
     let processes =
       Hardcaml.Signal_graph.fold graph ~init:[] ~f:(fun acc signal ->
         if Signal.is_empty signal
-           || (Signal.is_wire signal && Signal.is_empty (List.hd_exn (Signal.deps signal)))
+           || (Signal.Type.is_wire signal
+               && Option.is_none (Signal.Type.wire_driver signal))
         then acc
         else (
           let processes =

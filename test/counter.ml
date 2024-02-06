@@ -115,8 +115,8 @@ let%expect_test "adder - vcd" =
     $var wire 4 " amount $end
     $var wire 1 # clock $end
     $var wire 8 $ total $end
-    $var wire 1 % gnd $end
-    $var wire 9 & NEXT $end
+    $var wire 9 % NEXT $end
+    $var wire 1 & gnd $end
     $upscope $end
     $enddefinitions $end
     $dumpvars
@@ -124,51 +124,51 @@ let%expect_test "adder - vcd" =
     bxxxx "
     x#
     bxxxxxxxx $
-    x%
-    bxxxxxxxxx &
+    bxxxxxxxxx %
+    x&
     $end
     #0
     b0001 "
     1!
-    b000000001 &
+    b000000001 %
     #10
-    b000000010 &
+    b000000010 %
     1#
     b00000001 $
     #20
     0#
     #30
-    b000000011 &
+    b000000011 %
     1#
     b00000010 $
     #40
     0#
     #50
-    b000000100 &
+    b000000100 %
     1#
     b00000011 $
     #60
     0#
     #70
-    b000000101 &
+    b000000101 %
     1#
     b00000100 $
     #80
     0#
     #90
-    b000000110 &
+    b000000110 %
     1#
     b00000101 $
     #100
     0#
     #110
-    b000000111 &
+    b000000111 %
     1#
     b00000110 $
     #120
     0#
     #130
-    b000001000 &
+    b000001000 %
     1#
     b00000111 $
     #140
