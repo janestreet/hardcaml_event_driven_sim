@@ -1,34 +1,9 @@
 open Base
 module Sim = Event_driven_sim.Simulator
-module Time = Int
-
-module Data = struct
-  include Hardcaml.Bits
-
-  let none = empty
-  let merge _ b = b
-end
-
-module Events = struct
-  module E = Hardcaml_waveterm_event_store.Event_store.Make (Time) (Data)
-
-  type t =
-    { t : E.t
-    ; width : int
-    ; max_time : int ref
-    }
-  [@@deriving sexp_of]
-
-  let create width max_time = { t = E.create (); width; max_time }
-  let length t = !(t.max_time) + 1
-  let get t = E.get t.t
-  let equal _ _ = false
-  let width t = t.width
-end
-
-module Wave_port = Hardcaml_waveterm_kernel.Expert.Port
-module Wave_port_name = Hardcaml_waveterm_kernel.Expert.Port_name
-include Hardcaml_waveterm_kernel.Make (Events)
+module Events = Hardcaml_waveterm_event_store.Bits_store
+module Wave_port = Hardcaml_waveterm_kernel.Port
+module Wave_port_name = Hardcaml_waveterm_kernel.Port_name
+include Hardcaml_waveterm.Expert.Make (Events)
 
 module Make (Logic : Logic.S) = struct
   type t =
@@ -69,8 +44,8 @@ module Make (Logic : Logic.S) = struct
         let events = Events.create (Hardcaml.Signal.width port.base_signal) max_time in
         (* The waveform viewer requires an event at index 0 or will fail. The simulator
            can filter events until a change and may start recoding after time 0. *)
-        Events.E.insert
-          events.t
+        Events.Event_store.insert
+          (Events.event_store events)
           0
           (Hardcaml.Bits.zero (Hardcaml.Signal.width port.base_signal));
         let process =
@@ -79,7 +54,7 @@ module Make (Logic : Logic.S) = struct
             let%bind.Deferred () = wait_for_change (Sim.Signal.id port.signal) in
             let time = current_time () in
             let data = Sim.Signal.read port.signal |> Logic.to_bits_exn in
-            Events.E.insert events.t time data;
+            Events.Event_store.insert (Events.event_store events) time data;
             max_time := Int.max time !max_time;
             Deferred.return ())
         in

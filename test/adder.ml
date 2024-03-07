@@ -66,7 +66,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     in
     run ~time_limit:100 simulator;
     Core.print_s [%message (waves : Hardcaml_event_driven_sim.Waveterm.Waveform.t)];
-    Hardcaml_event_driven_sim.Waveterm.Waveform.print ~wave_width:(-3) waves;
+    Hardcaml_event_driven_sim.Waveterm.Waveform.expect waves ~wave_width:(-3);
     [%expect
       {|
       (waves
@@ -113,7 +113,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
       │               ││                                                   │
       │               ││                                                   │
       │               ││                                                   │
-      └───────────────┘└───────────────────────────────────────────────────┘ |}]
+      └───────────────┘└───────────────────────────────────────────────────┘
+      deacc79608dafd064470bfe1e9ae2338 |}]
   ;;
 end
 
