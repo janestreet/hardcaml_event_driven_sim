@@ -62,8 +62,7 @@ let%expect_test "simple_clock" =
   List.iter (List.range 0 10) ~f:(fun _ ->
     step sim;
     printf "%d:%d " (current_time sim) !!sig_t);
-  [%expect {|
-    1:0 2:1 3:2 4:3 5:4 6:5 7:6 8:7 9:8 10:9 |}]
+  [%expect {| 1:0 2:1 3:2 4:3 5:4 6:5 7:6 8:7 9:8 10:9 |}]
 ;;
 
 let nand a b =
@@ -186,7 +185,8 @@ let%expect_test "ppx_let integration" =
     t=500
     t=550
     t=600
-    t=650 |}]
+    t=650
+    |}]
 ;;
 
 let%expect_test "undefined write 1" =
@@ -205,8 +205,7 @@ let%expect_test "undefined write 1" =
       ]
   in
   run sim ~time_limit:30;
-  [%expect {|
-    t=10 sig_a=-1000 |}]
+  [%expect {| t=10 sig_a=-1000 |}]
 ;;
 
 let%expect_test "undefined write 2" =
@@ -235,7 +234,8 @@ let%expect_test "undefined write 2" =
     process 2 called
     t=10 sig_a=-1000
     process 1 called
-    process 2 called |}]
+    process 2 called
+    |}]
 ;;
 
 let%expect_test "multiple writes from one process" =
@@ -252,8 +252,7 @@ let%expect_test "multiple writes from one process" =
       ]
   in
   Simulator.run sim ~time_limit:30;
-  [%expect {|
-    t=10 sig_a=2 |}]
+  [%expect {| t=10 sig_a=2 |}]
 ;;
 
 let%expect_test "schedule keeps ordering" =
@@ -275,7 +274,8 @@ let%expect_test "schedule keeps ordering" =
     t=10 sig_a=1
     schedule write (a=1)
     t=20 sig_a=2
-    schedule write (a=2) |}]
+    schedule write (a=2)
+    |}]
 ;;
 
 let%expect_test "register" =
@@ -315,5 +315,6 @@ let%expect_test "register" =
     t=240 sig_clock=1
     t=240 sig_a=8
     t=240 sig_b=8
-    t=270 sig_a=9 |}]
+    t=270 sig_a=9
+    |}]
 ;;

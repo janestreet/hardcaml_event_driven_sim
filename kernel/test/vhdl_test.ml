@@ -68,7 +68,8 @@ let%expect_test "conflict1.vhd" =
     process1 X
     process2 X
     process1 X
-    process2 X |}]
+    process2 X
+    |}]
 ;;
 
 let%expect_test "conflict2.vhd" =
@@ -95,7 +96,8 @@ let%expect_test "conflict2.vhd" =
     process1 0
     process2 0
     process1 0
-    process2 0 |}]
+    process2 0
+    |}]
 ;;
 
 let%expect_test "wakeup2.vhd" =
@@ -130,5 +132,6 @@ let%expect_test "wakeup2.vhd" =
     80: P0: value is 0
     80: P1: value is 0
     90: P1: value is X
-    90: P0: value is X |}]
+    90: P0: value is X
+    |}]
 ;;

@@ -40,16 +40,17 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     run ~time_limit:100 sim;
     [%expect
       {|
-    t=0 c=1000
-    t=10 c=1001
-    t=20 c=1010
-    t=30 c=1011
-    t=40 c=1100
-    t=50 c=1101
-    t=60 c=1110
-    t=70 c=1111
-    t=80 c=0000
-    t=90 c=0001 |}]
+      t=0 c=1000
+      t=10 c=1001
+      t=20 c=1010
+      t=30 c=1011
+      t=40 c=1100
+      t=50 c=1101
+      t=60 c=1110
+      t=70 c=1111
+      t=80 c=0000
+      t=90 c=0001
+      |}]
   ;;
 
   let%expect_test "waveform" =
@@ -114,7 +115,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
       │               ││                                                   │
       │               ││                                                   │
       └───────────────┘└───────────────────────────────────────────────────┘
-      deacc79608dafd064470bfe1e9ae2338 |}]
+      deacc79608dafd064470bfe1e9ae2338
+      |}]
   ;;
 end
 

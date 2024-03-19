@@ -55,6 +55,5 @@ let%expect_test "basic_memory" =
          ])
   in
   run ~time_limit:300 sim;
-  [%expect {|
-    t=10 read_data=11000001 |}]
+  [%expect {| t=10 read_data=11000001 |}]
 ;;

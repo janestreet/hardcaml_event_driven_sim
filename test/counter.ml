@@ -53,27 +53,28 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     run ~time_limit:150 sim;
     [%expect
       {|
-    t=10 clock=1
-    t=10 total=00000001
-    t=20 clock=0
-    t=30 clock=1
-    t=30 total=00000010
-    t=40 clock=0
-    t=50 clock=1
-    t=50 total=00000011
-    t=60 clock=0
-    t=70 clock=1
-    t=70 total=00000100
-    t=80 clock=0
-    t=90 clock=1
-    t=90 total=00000101
-    t=100 clock=0
-    t=110 clock=1
-    t=110 total=00000110
-    t=120 clock=0
-    t=130 clock=1
-    t=130 total=00000111
-    t=140 clock=0 |}]
+      t=10 clock=1
+      t=10 total=00000001
+      t=20 clock=0
+      t=30 clock=1
+      t=30 total=00000010
+      t=40 clock=0
+      t=50 clock=1
+      t=50 total=00000011
+      t=60 clock=0
+      t=70 clock=1
+      t=70 total=00000100
+      t=80 clock=0
+      t=90 clock=1
+      t=90 total=00000101
+      t=100 clock=0
+      t=110 clock=1
+      t=110 total=00000110
+      t=120 clock=0
+      t=130 clock=1
+      t=130 total=00000111
+      t=140 clock=0
+      |}]
   ;;
 end
 
@@ -172,5 +173,6 @@ let%expect_test "adder - vcd" =
     1#
     b00000111 $
     #140
-    0# |}]
+    0#
+    |}]
 ;;

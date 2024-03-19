@@ -55,38 +55,39 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     run ~time_limit:700 sim;
     [%expect
       {|
-    t=0 valid=1
-    t=0 full=1
-    t=0 valid=0
-    t=0 full=0
-    t=60 in=0001
-    t=120 in=0010
-    t=180 in=0011
-    t=240 in=0100
-    t=300 in=0101
-    t=360 in=0110
-    t=390 full=1
-    t=410 valid=1
-    t=420 out=0001
-    t=430 out=0010
-    t=440 out=0011
-    t=450 out=0100
-    t=460 out=0101
-    t=470 out=0110
-    t=480 out=0000
-    t=480 valid=0
-    t=510 full=0
-    t=540 in=0111
-    t=580 out=0111
-    t=590 valid=1
-    t=600 in=1000
-    t=600 out=0000
-    t=600 valid=0
-    t=640 out=1000
-    t=650 valid=1
-    t=660 in=1001
-    t=660 out=0001
-    t=660 valid=0 |}]
+      t=0 valid=1
+      t=0 full=1
+      t=0 valid=0
+      t=0 full=0
+      t=60 in=0001
+      t=120 in=0010
+      t=180 in=0011
+      t=240 in=0100
+      t=300 in=0101
+      t=360 in=0110
+      t=390 full=1
+      t=410 valid=1
+      t=420 out=0001
+      t=430 out=0010
+      t=440 out=0011
+      t=450 out=0100
+      t=460 out=0101
+      t=470 out=0110
+      t=480 out=0000
+      t=480 valid=0
+      t=510 full=0
+      t=540 in=0111
+      t=580 out=0111
+      t=590 valid=1
+      t=600 in=1000
+      t=600 out=0000
+      t=600 valid=0
+      t=640 out=1000
+      t=650 valid=1
+      t=660 in=1001
+      t=660 out=0001
+      t=660 valid=0
+      |}]
   ;;
 
   let reader_writer_test
@@ -232,7 +233,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
       │waddr_rd          ││ 0                    ║ 3            ║ 6            ║ 5            ║ 0            ║ 1            ║ 3        │
       │                  ││──────────────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────│
       └──────────────────┘└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-      c3b6458fef0502aee7565c2254d3e9c7 |}]
+      c3b6458fef0502aee7565c2254d3e9c7
+      |}]
   ;;
 end
 

@@ -50,7 +50,8 @@ let%expect_test "simple time" =
     t=140 a=00
     t=160 a=01
     t=180 a=10
-    t=200 a=11 |}]
+    t=200 a=11
+    |}]
 ;;
 
 let%expect_test "signals optimized out" =
@@ -96,5 +97,6 @@ let%expect_test "signals optimized out" =
     t=60 c=11
     t=70 c=00
     t=80 c=01
-    t=90 c=10 |}]
+    t=90 c=10
+    |}]
 ;;
