@@ -187,7 +187,7 @@ module Make (Comb : Logic.S) = struct
       comb_process (fun () -> Simulator.Signal.read src)
     | Select { arg; high; low; _ } ->
       let d = to_sim_signal arg in
-      comb_process (fun () -> Comb.select (Simulator.Signal.read d) high low)
+      comb_process (fun () -> Comb.select (Simulator.Signal.read d) ~high ~low)
     | Reg { register; d; _ } -> compile_reg ~to_sim_signal signal ~source:d register
     | Multiport_mem { write_ports; _ } ->
       compile_multiport_mem ~memories ~to_sim_signal (Signal.uid signal) write_ports

@@ -7,9 +7,9 @@ module M = With_interface_intf.M
 module Config = With_interface_intf.Config
 
 module Make
-  (Logic : Logic_S)
-  (Input : Hardcaml.Interface.S)
-  (Output : Hardcaml.Interface.S) =
+    (Logic : Logic_S)
+    (Input : Hardcaml.Interface.S)
+    (Output : Hardcaml.Interface.S) =
 struct
   module Input = Input
   module Output = Output

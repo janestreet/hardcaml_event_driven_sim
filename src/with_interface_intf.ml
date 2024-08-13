@@ -98,7 +98,7 @@ module type With_interface = sig
   module Config = Config
 
   module Make
-    (Logic : Logic_S)
-    (Input : Hardcaml.Interface.S)
-    (Output : Hardcaml.Interface.S) : M(Logic)(Input)(Output).S
+      (Logic : Logic_S)
+      (Input : Hardcaml.Interface.S)
+      (Output : Hardcaml.Interface.S) : M(Logic)(Input)(Output).S
 end

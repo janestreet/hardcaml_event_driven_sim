@@ -2,4 +2,5 @@
  (name hardcaml_event_driven_sim_test)
  (preprocess
   (pps ppx_hardcaml ppx_jane))
- (libraries core hardcaml hardcaml_event_driven_sim hardcaml_test))
+ (libraries core event_driven_sim hardcaml hardcaml_event_driven_sim
+   hardcaml_test hardcaml_waveterm.kernel))

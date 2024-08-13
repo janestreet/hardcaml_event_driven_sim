@@ -5,9 +5,9 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   module Sim = Hardcaml_event_driven_sim.Make (Logic)
 
   module M = Hardcaml.Async_fifo.Make (struct
-    let width = 4
-    let log2_depth = 3
-  end)
+      let width = 4
+      let log2_depth = 3
+    end)
 
   module I = M.I
   module O = M.O
@@ -112,31 +112,34 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
         ~config:Hardcaml_event_driven_sim.Config.trace_all
         fifo
         (fun input output ->
-        let input = I.map input ~f:(fun v -> v.signal) in
-        let output = O.map output ~f:(fun v -> v.signal) in
-        [ Sim.Process.create [] (fun () -> input.I.read_enable <-- of_string "1")
-        ; Sim_interface.create_clock input.I.clock_read ~time:read_clock_time
-        ; Sim_interface.create_clock input.I.clock_write ~time:write_clock_time
-        ; Sim.Process.create [ !&(input.I.clock_write) ] (fun () ->
-            if Logic.compare !!(input.I.data_in) (of_string "1111") = 0
-            then input.I.write_enable <-- of_string "0"
-            else (
-              input.I.write_enable <-- of_string "1";
-              if is_gnd !!(input.I.clock_write)
-              then
-                if is_gnd !!(output.O.full)
-                then input.I.data_in <-- !!(input.I.data_in) +:. 1))
-        ; Sim.Process.create [ !&(input.I.clock_read) ] (fun () ->
-            if is_gnd !!(input.I.clock_read)
-            then
-              if is_vdd !!(output.O.valid)
-              then (
-                let current_value = !!(output.O.data_out) in
-                if not (Logic.compare current_value !expected_now = 0)
-                then
-                  printf !"invalid value: %{Logic} %{Logic}\n" current_value !expected_now
-                else expected_now := !expected_now +:. 1))
-        ])
+           let input = I.map input ~f:(fun v -> v.signal) in
+           let output = O.map output ~f:(fun v -> v.signal) in
+           [ Sim.Process.create [] (fun () -> input.I.read_enable <-- of_string "1")
+           ; Sim_interface.create_clock input.I.clock_read ~time:read_clock_time
+           ; Sim_interface.create_clock input.I.clock_write ~time:write_clock_time
+           ; Sim.Process.create [ !&(input.I.clock_write) ] (fun () ->
+               if Logic.compare !!(input.I.data_in) (of_string "1111") = 0
+               then input.I.write_enable <-- of_string "0"
+               else (
+                 input.I.write_enable <-- of_string "1";
+                 if is_gnd !!(input.I.clock_write)
+                 then
+                   if is_gnd !!(output.O.full)
+                   then input.I.data_in <-- !!(input.I.data_in) +:. 1))
+           ; Sim.Process.create [ !&(input.I.clock_read) ] (fun () ->
+               if is_gnd !!(input.I.clock_read)
+               then
+                 if is_vdd !!(output.O.valid)
+                 then (
+                   let current_value = !!(output.O.data_out) in
+                   if not (Logic.compare current_value !expected_now = 0)
+                   then
+                     printf
+                       !"invalid value: %{Logic} %{Logic}\n"
+                       current_value
+                       !expected_now
+                   else expected_now := !expected_now +:. 1))
+           ])
     in
     Sim.run ~time_limit:100000 sim;
     printf !"finish: %{Logic}\n" !expected_now;

@@ -36,8 +36,8 @@ module Gates : Comb.Gates with type t = t = struct
     }
   ;;
 
-  let select t lo hi =
-    { bits = Bits.select t.bits lo hi; mask = Bits.select t.mask lo hi }
+  let select t ~high ~low =
+    { bits = Bits.select t.bits ~high ~low; mask = Bits.select t.mask ~high ~low }
   ;;
 
   let ( -- ) t _name = t
@@ -83,34 +83,34 @@ end
 module Slow_primitives = Comb.Make_primitives (Gates)
 
 module T = Comb.Make (struct
-  include Gates
+    include Gates
 
-  let[@inline] lift2 op op_fallback a b =
-    if is_pure a && is_pure b
-    then (
-      let bits = op a.bits b.bits in
-      { bits; mask = Bits.zero (Bits.width bits) })
-    else op_fallback a b
-  ;;
+    let[@inline] lift2 op op_fallback a b =
+      if is_pure a && is_pure b
+      then (
+        let bits = op a.bits b.bits in
+        { bits; mask = Bits.zero (Bits.width bits) })
+      else op_fallback a b
+    ;;
 
-  let ( +: ) = lift2 Bits.( +: ) Slow_primitives.( +: )
-  let ( -: ) = lift2 Bits.( -: ) Slow_primitives.( -: )
-  let ( *: ) = lift2 Bits.( *: ) Slow_primitives.( *: )
-  let ( *+ ) = lift2 Bits.( *+ ) Slow_primitives.( *+ )
-  let ( <: ) = lift2 Bits.( <: ) Slow_primitives.( <: )
-  let ( ==: ) = lift2 Bits.( ==: ) Slow_primitives.( ==: )
+    let ( +: ) = lift2 Bits.( +: ) Slow_primitives.( +: )
+    let ( -: ) = lift2 Bits.( -: ) Slow_primitives.( -: )
+    let ( *: ) = lift2 Bits.( *: ) Slow_primitives.( *: )
+    let ( *+ ) = lift2 Bits.( *+ ) Slow_primitives.( *+ )
+    let ( <: ) = lift2 Bits.( <: ) Slow_primitives.( <: )
+    let ( ==: ) = lift2 Bits.( ==: ) Slow_primitives.( ==: )
 
-  let mux a l =
-    if is_pure a
-    then (
-      match
-        List.map l ~f:(fun v -> if is_pure v then Some v.bits else None) |> Option.all
-      with
-      | Some l_bits -> { bits = Bits.mux a.bits l_bits; mask = (List.hd_exn l).mask }
-      | None -> Slow_primitives.mux a l)
-    else Slow_primitives.mux a l
-  ;;
-end)
+    let mux a l =
+      if is_pure a
+      then (
+        match
+          List.map l ~f:(fun v -> if is_pure v then Some v.bits else None) |> Option.all
+        with
+        | Some l_bits -> { bits = Bits.mux a.bits l_bits; mask = (List.hd_exn l).mask }
+        | None -> Slow_primitives.mux a l)
+      else Slow_primitives.mux a l
+    ;;
+  end)
 
 include (
   T :
@@ -128,11 +128,11 @@ let const t =
   let bits_str, mask_str =
     String.to_list t
     |> List.map ~f:(function
-         | '1' -> '1', '0'
-         | '0' -> '0', '0'
-         | 'X' -> '1', '1'
-         | 'Z' -> '0', '1'
-         | _ -> raise_s [%message "invalid Logic string" (t : string)])
+      | '1' -> '1', '0'
+      | '0' -> '0', '0'
+      | 'X' -> '1', '1'
+      | 'Z' -> '0', '1'
+      | _ -> raise_s [%message "invalid Logic string" (t : string)])
     |> List.unzip
   in
   { bits = Bits.of_string (String.of_char_list bits_str)
@@ -196,10 +196,10 @@ let%test_unit "resolve2 works correctly" =
 ;;
 
 module For_simulator (Prop : sig
-  val width : int
-  val initial_value : t
-  val resolution : [ `Unresolved | `Resolved ]
-end) =
+    val width : int
+    val initial_value : t
+    val resolution : [ `Unresolved | `Resolved ]
+  end) =
 struct
   type nonrec t = t
 
@@ -233,8 +233,8 @@ end
 let create_signal ?initial_value ?(resolution = `Unresolved) width =
   Event_driven_sim.Simulator.Signal.create
     (module For_simulator (struct
-      let width = width
-      let initial_value = initial_value |> Option.value ~default:(don't_care width)
-      let resolution = resolution
-    end))
+        let width = width
+        let initial_value = initial_value |> Option.value ~default:(don't_care width)
+        let resolution = resolution
+      end))
 ;;

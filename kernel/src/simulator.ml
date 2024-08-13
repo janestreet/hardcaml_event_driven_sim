@@ -390,7 +390,7 @@ let create processes =
 let delta_step t =
   Global_state.current_simulator := Some t;
   t.current_step
-    <- { t.current_step with Delta_step.delta = Delta_step.delta t.current_step + 1 };
+  <- { t.current_step with Delta_step.delta = Delta_step.delta t.current_step + 1 };
   let updates = t.delta_updates in
   t.delta_updates <- t.delta_updates_now;
   t.delta_updates_now <- updates;
@@ -450,12 +450,12 @@ module Debug = struct
 
   let at_start_of_time_step t f =
     t.simulation_callbacks.at_start_of_time_step
-      <- f :: t.simulation_callbacks.at_start_of_time_step
+    <- f :: t.simulation_callbacks.at_start_of_time_step
   ;;
 
   let at_end_of_time_step t f =
     t.simulation_callbacks.at_end_of_time_step
-      <- f :: t.simulation_callbacks.at_end_of_time_step
+    <- f :: t.simulation_callbacks.at_end_of_time_step
   ;;
 end
 

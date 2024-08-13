@@ -92,11 +92,11 @@ let%expect_test "adder - vcd" =
       ~vcd:Out_channel.stdout
       f
       (fun input _output ->
-      [ Sim_interface.create_clock input.I.clock.signal ~time:10
-      ; Process.create [] (fun () ->
-          input.I.amount.signal <-- of_string "0001";
-          input.I.incr.signal <-- of_string "1")
-      ])
+         [ Sim_interface.create_clock input.I.clock.signal ~time:10
+         ; Process.create [] (fun () ->
+             input.I.amount.signal <-- of_string "0001";
+             input.I.incr.signal <-- of_string "1")
+         ])
   in
   run ~time_limit:150 sim;
   [%expect
