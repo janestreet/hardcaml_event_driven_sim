@@ -11,7 +11,6 @@ let ( <--- ) = Simulator.( <--- )
 
 module Make (Comb : Logic.S) = struct
   module Signal = Hardcaml.Signal
-  module Reg_spec = Hardcaml.Reg_spec
 
   let to_bool sim_signal =
     let bits = ( !! ) sim_signal in
@@ -34,37 +33,32 @@ module Make (Comb : Logic.S) = struct
     | Rising -> true
   ;;
 
-  let level_to_bool level =
-    match (level : Hardcaml.Level.t) with
-    | Low -> false
-    | High -> true
-  ;;
-
   let compile_reg ~to_sim_signal signal ~source reg =
-    let { Reg_spec.reg_clock
-        ; reg_clock_edge
-        ; reg_reset
-        ; reg_reset_edge
-        ; reg_reset_value
-        ; reg_clear
-        ; reg_clear_level
-        ; reg_clear_value
-        ; reg_enable
+    let { Signal.Type.clock = { clock; clock_edge }
+        ; reset
+        ; clear
+        ; initialize_to = _
+        ; enable
         }
       =
       reg
     in
-    let to_sim_signal_opt reg =
-      if Signal.is_empty reg then None else Some (to_sim_signal reg)
-    in
+    let to_sim_signal_opt t = Option.map t ~f:to_sim_signal in
     let sim_target = to_sim_signal signal in
     let sim_source = to_sim_signal source in
-    let sim_clock = to_sim_signal reg_clock in
-    let sim_reset = to_sim_signal_opt reg_reset in
-    let sim_reset_value = to_sim_signal_opt reg_reset_value in
-    let sim_clear = to_sim_signal_opt reg_clear in
-    let sim_clear_value = to_sim_signal_opt reg_clear_value in
-    let sim_enable = to_sim_signal reg_enable in
+    let sim_clock = to_sim_signal clock in
+    let sim_reset, reset_edge, sim_reset_to =
+      Option.value_map
+        reset
+        ~default:(None, Hardcaml.Edge.Rising, None)
+        ~f:(fun { reset; reset_edge; reset_to; _ } ->
+          Some (to_sim_signal reset), reset_edge, Some (to_sim_signal reset_to))
+    in
+    let sim_clear, sim_clear_to =
+      Option.value_map clear ~default:(None, None) ~f:(fun { clear; clear_to } ->
+        Some (to_sim_signal clear), Some (to_sim_signal clear_to))
+    in
+    let sim_enable = to_sim_signal_opt enable in
     let source_width = Signal.width source in
     let value_or_zero value width =
       Option.value
@@ -75,17 +69,16 @@ module Make (Comb : Logic.S) = struct
       , fun () ->
           if match sim_reset with
              | Some sim_reset_v ->
-               Bool.( = ) (to_bool sim_reset_v) (edge_to_bool reg_reset_edge)
+               Bool.( = ) (to_bool sim_reset_v) (edge_to_bool reset_edge)
              | None -> false
-          then sim_target <-- !!(value_or_zero sim_reset_value source_width)
-          else if is_edge sim_clock reg_clock_edge
+          then sim_target <-- !!(value_or_zero sim_reset_to source_width)
+          else if is_edge sim_clock clock_edge
           then
             if match sim_clear with
-               | Some sim_clear_v ->
-                 Bool.( = ) (to_bool sim_clear_v) (level_to_bool reg_clear_level)
+               | Some sim_clear_v -> to_bool sim_clear_v
                | None -> false
-            then sim_target <-- !!(value_or_zero sim_clear_value source_width)
-            else if to_bool sim_enable
+            then sim_target <-- !!(value_or_zero sim_clear_to source_width)
+            else if Option.value_map sim_enable ~default:true ~f:to_bool
             then sim_target <-- !!sim_source )
     ]
   ;;
@@ -152,6 +145,7 @@ module Make (Comb : Logic.S) = struct
     in
     match (signal : Signal.t) with
     | Empty -> failwith "can't compile empty signal"
+    | Wire { driver = None; _ } -> failwith "Cannot compile undriven wire"
     | Const { constant; _ } -> comb_process (fun () -> Comb.of_bits constant)
     | Not { arg; _ } ->
       let d = to_sim_signal arg in
@@ -182,8 +176,8 @@ module Make (Comb : Logic.S) = struct
        | Signal_lt -> op2 Comb.( <: ))
         arg_a
         arg_b
-    | Wire { driver; _ } ->
-      let src = to_sim_signal !driver in
+    | Wire { driver = Some driver; _ } ->
+      let src = to_sim_signal driver in
       comb_process (fun () -> Simulator.Signal.read src)
     | Select { arg; high; low; _ } ->
       let d = to_sim_signal arg in
@@ -200,7 +194,13 @@ module Make (Comb : Logic.S) = struct
 
   let create_from_signal ~signal =
     let width = Signal.width signal in
-    Comb.create_signal ~initial_value:(Comb.zero width) width
+    let initial_value =
+      match signal with
+      | Reg { register = { initialize_to = Some initialize_to; _ }; _ } ->
+        Comb.of_constant (Signal.to_constant initialize_to)
+      | _ -> Comb.zero width
+    in
+    Comb.create_signal ~initial_value width
   ;;
 
   let make_simulator_signals graph =
@@ -222,13 +222,16 @@ module Make (Comb : Logic.S) = struct
         ~init:(Map.empty (module Signal.Uid))
         ~f:(fun acc signal ->
           match signal with
-          | Multiport_mem { size; write_ports; _ } ->
-            let data_width = Signal.width write_ports.(0).write_data in
+          | Multiport_mem { size; initialize_to; _ } ->
+            let data_width = Signal.width signal in
             Map.add_exn
               acc
               ~key:(Signal.uid signal)
               ~data:
-                { Memory_data.array = Array.create ~len:size (Comb.zero data_width)
+                { Memory_data.array =
+                    (match initialize_to with
+                     | None -> Array.create ~len:size (Comb.zero data_width)
+                     | Some initialize_to -> Array.map initialize_to ~f:Comb.of_bits)
                 ; read_ports = []
                 }
           | _ -> acc)
