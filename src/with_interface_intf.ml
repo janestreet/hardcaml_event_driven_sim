@@ -33,6 +33,7 @@ struct
       ; input : Logic.t Port.t Input.t
       ; output : Logic.t Port.t Output.t
       ; internal : Logic.t Port.t list
+      ; memories : Logic.t Array.t list String.Map.t
       }
 
     (** Returns a process that drives a given signal as a clock with a given time between

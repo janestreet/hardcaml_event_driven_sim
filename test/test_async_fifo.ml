@@ -18,7 +18,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     let open Async in
     let open Logic in
     let fifo = M.create ~scope:(Hardcaml.Scope.create ~flatten_design:true ()) in
-    let { Sim_interface.processes; input; output; internal = _ } =
+    let { Sim_interface.processes; input; output; internal = _; memories = _ } =
       Sim_interface.create fifo
     in
     let input = I.map input ~f:(fun v -> v.signal) in
@@ -236,7 +236,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
       │waddr_rd          ││ 0                    ║ 3            ║ 6            ║ 5            ║ 0            ║ 1            ║ 3        │
       │                  ││──────────────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────│
       └──────────────────┘└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-      c3b6458fef0502aee7565c2254d3e9c7
+      f3e6b921494d4e1a2828df4675d528e3
       |}]
   ;;
 end
