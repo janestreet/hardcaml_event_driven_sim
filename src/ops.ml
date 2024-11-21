@@ -158,6 +158,19 @@ module Make (Comb : Logic.S) = struct
       let rest = List.map ~f:to_sim_signal cases in
       comb_process (fun () ->
         Comb.mux (Simulator.Signal.read d) (List.map ~f:Simulator.Signal.read rest))
+    | Cases { select; cases; default; _ } ->
+      let select = to_sim_signal select in
+      let default = to_sim_signal default in
+      let cases =
+        List.map cases ~f:(fun (match_with, value) ->
+          to_sim_signal match_with, to_sim_signal value)
+      in
+      comb_process (fun () ->
+        Comb.cases
+          ~default:(Simulator.Signal.read default)
+          (Simulator.Signal.read select)
+          (List.map cases ~f:(fun (match_with, value) ->
+             Simulator.Signal.read match_with, Simulator.Signal.read value)))
     | Op2 { op; arg_a; arg_b; _ } ->
       let op2 op a b =
         let a = to_sim_signal a in
@@ -271,7 +284,7 @@ module Make (Comb : Logic.S) = struct
           processes :: acc))
       |> List.concat
     in
-    List.map processes ~f:(fun (deps, f) -> Simulator.Process.create deps f)
+    List.map processes ~f:(fun (deps, f) -> Simulator.Process.create deps f), memories
   ;;
 
   let inst_not_supported signal ~inputs:_ =
@@ -282,8 +295,27 @@ module Make (Comb : Logic.S) = struct
     { processes : Simulator.Process.t list
     ; find_sim_signal : Hardcaml.Signal.t -> Comb.t Simulator.Signal.t
     ; fake_sim_signal : Hardcaml.Signal.t -> Comb.t Simulator.Signal.t
+    ; memories : Memory_data.t Map.M(Signal.Uid).t
     }
   [@@deriving fields ~getters]
+
+  let make_find_sim_signal signal_map signal =
+    match Map.find signal_map (Signal.uid signal) with
+    | Some s -> s
+    | None ->
+      raise_s
+        [%message
+          "signal not mapped to simulator signal"
+            (signal : Signal.t)
+            ~uid:(Signal.uid signal : Signal.Uid.t)]
+  ;;
+
+  let aux_create ~processes ~find_sim_signal ~memories =
+    let fake_sim_signal signal = create_from_signal ~signal in
+    { processes; find_sim_signal; fake_sim_signal; memories }
+  ;;
+
+  let lookup_memory_exn { memories; _ } uid = (Map.find_exn memories uid).array
 
   let circuit_to_processes
     ?(delay = fun _ -> 0)
@@ -292,20 +324,334 @@ module Make (Comb : Logic.S) = struct
     =
     let graph = Hardcaml.Circuit.signal_graph circuit in
     let signal_map = make_simulator_signals graph in
-    let find_sim_signal signal =
-      match Map.find signal_map (Signal.uid signal) with
-      | Some s -> s
-      | None ->
-        raise_s
-          [%message
-            "signal not mapped to simulator signal"
-              (signal : Signal.t)
-              ~uid:(Signal.uid signal : Signal.Uid.t)]
-    in
-    let fake_sim_signal signal = create_from_signal ~signal in
-    let processes =
+    let find_sim_signal = make_find_sim_signal signal_map in
+    let processes, memories =
       make_processes ~external_insts ~to_sim_signal:find_sim_signal ~delay graph
     in
-    { processes; find_sim_signal; fake_sim_signal }
+    aux_create ~processes ~find_sim_signal ~memories
+  ;;
+
+  (* Start of helper functions for hybrid evsim construction *)
+  include struct
+    open Hardcaml
+    module Circuit = Circuit
+    module Cyclesim = Cyclesim
+    module Signal_graph = Signal_graph
+  end
+
+  let make_old_signal_by_old_uid ~original_circuit =
+    original_circuit
+    |> Circuit.signal_graph
+    |> Signal_graph.fold
+         ~init:(Map.empty (module Signal.Uid))
+         ~f:(fun old_signal_by_old_uid signal ->
+           Map.add_exn old_signal_by_old_uid ~key:(Signal.uid signal) ~data:signal)
+  ;;
+
+  let make_sim_signals_by_new_uids ~old_uid_signal_kinds ~old_signal_by_old_uid =
+    old_uid_signal_kinds
+    |> Map.to_alist
+    |> List.concat_map
+         ~f:
+           (fun
+             (old_uid, (signal_kind : Clock_domain_splitting.Original_signal_kind.t)) ->
+           let old_signal = Map.find_exn old_signal_by_old_uid old_uid in
+           match signal_kind with
+           | Circuit_input (Input { new_domain = _; new_uid }) ->
+             let sim_signal = create_from_signal ~signal:old_signal in
+             [ new_uid, sim_signal ]
+           | Circuit_input
+               (Boundary
+                 { new_output = { new_output_wire; new_output_driver }
+                 ; new_output_domain = _
+                 ; new_inputs
+                 })
+           | Boundary
+               { new_output = { new_output_wire; new_output_driver }
+               ; new_output_domain = _
+               ; new_inputs
+               } ->
+             let boundary_signal = create_from_signal ~signal:old_signal in
+             (* If an original signal is the output of a clock domain and the input of
+                other clock domains, the new signals all share the same evsim signal. This
+                is how values are communicated across clock domains: the
+                [new_output_domain] writes to the evsim signal and the input domains read
+                from the evsim signal. *)
+             let boundary_mappings =
+               List.map (new_output_wire :: Map.data new_inputs) ~f:(fun new_uid ->
+                 new_uid, boundary_signal)
+             in
+             (* Sometimes we don't need an evsim signal for the driver, like when the
+                driver is a completely internal node of a cyclesim. But in all other cases
+                we do need this evsim signal, so we just always add it. *)
+             let driver_mapping =
+               new_output_driver, create_from_signal ~signal:old_signal
+             in
+             driver_mapping :: boundary_mappings
+           | Internal { new_uids } ->
+             new_uids
+             |> Map.to_alist
+             |> List.filter_map ~f:(fun (clock_domain, new_uid) ->
+               match clock_domain with
+               | Floating ->
+                 (* Only the floating domain needs an evsim signal for internal signal *)
+                 let sim_signal = create_from_signal ~signal:old_signal in
+                 Some (new_uid, sim_signal)
+               | Clocked _ -> None))
+    |> Map.of_alist_exn (module Signal.Uid)
+  ;;
+
+  type signal_port_list = (Signal.t * Hardcaml.Bits.t ref) list
+
+  (* The signals in the returned [signal_port_list]s are the new signals *)
+  let create_cyclesim_from_circuit
+    ({ circuit; new_signals_by_original_uids = _ } :
+      Clock_domain_splitting.Copied_circuit.t)
+    ~combinational_ops_database
+    ~random_initializer
+    : (signal_port_list, signal_port_list) Cyclesim.t
+    =
+    let create_name_to_signal_map signals =
+      List.map signals ~f:(fun signal ->
+        let name = Signal.names signal |> List.hd_exn in
+        name, signal)
+      |> String.Map.of_alist_exn
+    in
+    let input_signals_by_name = Circuit.inputs circuit |> create_name_to_signal_map in
+    let output_signals_by_name = Circuit.outputs circuit |> create_name_to_signal_map in
+    let cyclesim =
+      Cyclesim.create
+        ~config:
+          { is_internal_port = None
+          ; combinational_ops_database
+          ; deduplicate_signals =
+              true
+              (* We can set this to true because we only care about the input and output
+                 names of the circuit staying the same *)
+          ; store_circuit = false
+          ; random_initializer
+          }
+        circuit
+    in
+    let port_to_signal_bit_map port_list ~name_to_signal_map =
+      List.map port_list ~f:(fun (name, bits) ->
+        let signal = Map.find_exn name_to_signal_map name in
+        signal, bits)
+    in
+    Cyclesim.Private.coerce
+      cyclesim
+      ~to_input:(port_to_signal_bit_map ~name_to_signal_map:input_signals_by_name)
+      ~to_output:(port_to_signal_bit_map ~name_to_signal_map:output_signals_by_name)
+  ;;
+
+  let compute_circuit_max_depth circuit =
+    let module Deps = Signal_graph.Deps_for_simulation_scheduling in
+    let signal_depth = Hashtbl.create (module Signal.Uid) in
+    circuit
+    |> Circuit.signal_graph
+    |> Signal_graph.depth_first_search
+         ~deps:(module Deps)
+         ~init:0
+         ~f_after:(fun max_depth signal ->
+           let max_dep_depth =
+             Deps.fold signal ~init:0 ~f:(fun max dep ->
+               Int.max (Hashtbl.find_exn signal_depth (Signal.uid dep)) max)
+           in
+           let depth = max_dep_depth + 1 in
+           Hashtbl.set signal_depth ~key:(Signal.uid signal) ~data:depth;
+           Int.max depth max_depth)
+  ;;
+
+  let create_cyclesim_process
+    ({ clock; edge; reset } : Clock_domain_splitting.Clock_spec.t)
+    cyclesim
+    ~find_sim_signal
+    ~output_depth
+    =
+    let sim_clock = find_sim_signal clock in
+    let sim_reset_and_edge =
+      Option.map reset ~f:(fun { signal; edge } -> find_sim_signal signal, edge)
+    in
+    let signals_with_bits_to_simulator_signals signal_to_bits_map =
+      signal_to_bits_map
+      |> List.map ~f:(fun (signal, bits) -> find_sim_signal signal, bits)
+      |> Array.of_list
+    in
+    let inputs = signals_with_bits_to_simulator_signals (Cyclesim.inputs cyclesim) in
+    let outputs =
+      signals_with_bits_to_simulator_signals (Cyclesim.outputs ~clock_edge:After cyclesim)
+    in
+    let read_inputs () =
+      Array.iter inputs ~f:(fun (signal, bits) ->
+        bits := Comb.to_bits_exn (Simulator.Signal.read signal))
+    in
+    let write_outputs () =
+      Array.iter outputs ~f:(fun (signal, bits) -> signal <-- Comb.of_bits !bits)
+    in
+    let recompute_comb () =
+      read_inputs ();
+      Cyclesim.cycle_check cyclesim;
+      Cyclesim.cycle_before_clock_edge cyclesim;
+      Cyclesim.cycle_after_clock_edge cyclesim
+    in
+    let update_outputs_signal = Comb.create_signal ~initial_value:(Comb.zero 1) 1 in
+    (* We do this to delay writing the outputs a number of delta steps equal to the
+       maximum number of nodes between a register and an output of the circuit. This
+       allows to roughly have the correct delta step delay on each of the output signals. *)
+    let update_outputs_delayed_procs =
+      let signals =
+        List.init output_depth ~f:(fun _ ->
+          Comb.create_signal ~initial_value:(Comb.zero 1) 1)
+      in
+      let last_signal, processes =
+        List.fold
+          signals
+          ~init:(update_outputs_signal, [])
+          ~f:(fun (prev_signal, processes) signal ->
+            ( signal
+            , Simulator.Process.create [ !&prev_signal ] (fun () ->
+                signal <-- !!prev_signal)
+              :: processes ))
+      in
+      let is_initial_run = ref true in
+      Simulator.Process.create [ !&last_signal ] (fun () ->
+        if !is_initial_run then is_initial_run := false else write_outputs ())
+      :: processes
+    in
+    let deps =
+      List.filter_opt
+        [ Some !&sim_clock
+        ; Option.map sim_reset_and_edge ~f:(fun (reset_signal, _edge) -> !&reset_signal)
+        ]
+    in
+    let is_initial_run = ref true in
+    let f () =
+      if !is_initial_run
+      then (
+        recompute_comb ();
+        update_outputs_signal <-- Comb.( ~: ) !!update_outputs_signal;
+        is_initial_run := false)
+      else if match sim_reset_and_edge with
+              | Some (reset_signal, edge) ->
+                Bool.( = ) (to_bool reset_signal) (edge_to_bool edge)
+              | None -> false
+      then (
+        Cyclesim.reset cyclesim;
+        recompute_comb ();
+        update_outputs_signal <-- Comb.( ~: ) !!update_outputs_signal)
+      else if is_edge sim_clock edge
+      then (
+        read_inputs ();
+        Cyclesim.cycle cyclesim;
+        update_outputs_signal <-- Comb.( ~: ) !!update_outputs_signal)
+    in
+    Simulator.Process.create deps f :: update_outputs_delayed_procs
+  ;;
+
+  let find_sim_signals_for_old_uids ~old_uid_signal_kinds ~sim_signals_by_new_uid =
+    old_uid_signal_kinds
+    |> Map.to_alist
+    |> List.filter_map
+         ~f:
+           (fun
+             (old_uid, (signal_kind : Clock_domain_splitting.Original_signal_kind.t)) ->
+           let maybe_representative_new_uid =
+             match signal_kind with
+             | Circuit_input (Input { new_domain = _; new_uid }) -> Some new_uid
+             | Circuit_input
+                 (Boundary
+                   { new_output = { new_output_wire = _; new_output_driver }
+                   ; new_output_domain = _
+                   ; new_inputs = _
+                   }) ->
+               (* For circuit inputs, we want to use the [new_output_driver], since it
+                  won't be driven by a process *)
+               Some new_output_driver
+             | Boundary
+                 { new_output = { new_output_wire; new_output_driver = _ }
+                 ; new_output_domain = _
+                 ; new_inputs = _
+                 } ->
+               (* For clock domain outputs, new know that the [new_output_wire] is
+                  definitely going to be driven, so use that as the representative uid *)
+               Some new_output_wire
+             | Internal { new_uids } -> Map.find new_uids Floating
+           in
+           Option.map maybe_representative_new_uid ~f:(fun new_uid ->
+             let sim_signal = Map.find_exn sim_signals_by_new_uid new_uid in
+             old_uid, sim_signal))
+    |> Map.of_alist_exn (module Signal.Uid)
+  ;;
+
+  let circuit_to_hybrid_processes
+    ?(delay = fun _ -> 0)
+    ?(external_insts = inst_not_supported)
+    original_circuit
+    ~combinational_ops_database
+    ~random_initializer
+    =
+    let clock_domains = Clock_domain_splitting.group_by_clock_domain original_circuit in
+    let old_uid_signal_kinds =
+      Clock_domain_splitting.classify_original_uids ~original_circuit ~clock_domains
+    in
+    let sim_signals_by_new_uid =
+      let old_signal_by_old_uid = make_old_signal_by_old_uid ~original_circuit in
+      make_sim_signals_by_new_uids ~old_uid_signal_kinds ~old_signal_by_old_uid
+    in
+    let find_sim_signal ~new_signal =
+      Map.find_exn sim_signals_by_new_uid (Signal.uid new_signal)
+    in
+    let floating_circuit, clocked_circuits =
+      clock_domains
+      |> Map.to_alist
+      |> List.partition_map ~f:(fun (clock_domain, graph) ->
+        match (clock_domain : Clock_domain_splitting.Clock_domain.t) with
+        | Floating -> First graph
+        | Clocked clock -> Second (clock, graph))
+    in
+    let cyclesims_by_clock_domain =
+      List.Assoc.map clocked_circuits ~f:(fun copied_circuit ->
+        let cyclesim =
+          create_cyclesim_from_circuit
+            copied_circuit
+            ~combinational_ops_database
+            ~random_initializer
+        in
+        copied_circuit, cyclesim)
+    in
+    let processes =
+      let floating_processes =
+        List.concat_map
+          floating_circuit
+          ~f:(fun { circuit; new_signals_by_original_uids = _ } ->
+            let floating_processes, _memories =
+              make_processes
+                ~external_insts
+                ~to_sim_signal:(fun signal -> find_sim_signal ~new_signal:signal)
+                ~delay
+                (Circuit.signal_graph circuit)
+            in
+            floating_processes)
+      in
+      let cyclesim_processes =
+        List.concat_map
+          cyclesims_by_clock_domain
+          ~f:
+            (fun
+              (clock_domain, ({ circuit; new_signals_by_original_uids = _ }, cyclesim)) ->
+            let output_depth = compute_circuit_max_depth circuit in
+            create_cyclesim_process
+              clock_domain
+              cyclesim
+              ~output_depth
+              ~find_sim_signal:(fun signal -> find_sim_signal ~new_signal:signal))
+      in
+      floating_processes @ cyclesim_processes
+    in
+    let sim_signals_by_old_uid =
+      find_sim_signals_for_old_uids ~old_uid_signal_kinds ~sim_signals_by_new_uid
+    in
+    let find_sim_signal = make_find_sim_signal sim_signals_by_old_uid in
+    aux_create ~processes ~find_sim_signal ~memories:(Map.empty (module Signal.Uid))
   ;;
 end

@@ -40,7 +40,9 @@ let%expect_test "basic_memory" =
   let module Sim_interface = Sim.With_interface (I) (O) in
   let open Sim.Event_simulator in
   let open Hardcaml_event_driven_sim.Four_state_logic in
-  let { Sim_interface.processes; input; output; internal = _ } = Sim_interface.create f in
+  let { Sim_interface.processes; input; output; internal = _; memories = _ } =
+    Sim_interface.create f
+  in
   let input = I.map input ~f:(fun v -> v.signal) in
   let output = O.map output ~f:(fun v -> v.signal) in
   let sim =

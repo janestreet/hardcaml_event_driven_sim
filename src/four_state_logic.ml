@@ -110,6 +110,13 @@ module T = Comb.Make (struct
         | None -> Slow_primitives.mux a l)
       else Slow_primitives.mux a l
     ;;
+
+    include Comb.Expert.Gen_cases_from_mux (struct
+        type nonrec t = t
+
+        let mux = mux
+        let ( ==: ) = ( ==: )
+      end)
   end)
 
 include (

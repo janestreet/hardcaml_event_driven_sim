@@ -23,6 +23,7 @@ struct
     ; input : Logic.t Port.t Input.t
     ; output : Logic.t Port.t Output.t
     ; internal : Logic.t Port.t list
+    ; memories : Logic.t Array.t list String.Map.t
     }
 
   let create_clock ?initial_delay ~time signal =
@@ -62,7 +63,16 @@ struct
     let circuit, traced =
       make_circuit_and_io ~is_internal_port:config.is_internal_port f
     in
-    let ops = Ops.circuit_to_processes circuit in
+    let ops =
+      if config.use_cyclesim
+      then (
+        let combinational_ops_database = Hardcaml.Combinational_ops_database.create () in
+        Ops.circuit_to_hybrid_processes
+          circuit
+          ~combinational_ops_database
+          ~random_initializer:None)
+      else Ops.circuit_to_processes circuit
+    in
     let port base_signal mangled_names =
       { Port.signal = Ops.find_sim_signal ops base_signal; base_signal; mangled_names }
     in
@@ -72,6 +82,19 @@ struct
     in
     let find_port (traced : Hardcaml.Cyclesim.Traced.io_port list) name =
       List.find traced ~f:(fun t -> String.equal t.name name)
+    in
+    let memories =
+      List.concat_map traced.internal_signals ~f:(fun internal_signal ->
+        let hardcaml_signal = internal_signal.signal in
+        match hardcaml_signal with
+        | Multiport_mem _ ->
+          let memory = Ops.lookup_memory_exn ops (Hardcaml.Signal.uid hardcaml_signal) in
+          List.map (Hardcaml.Signal.names hardcaml_signal) ~f:(fun name -> name, memory)
+        | _ -> [])
+      |> String.Map.of_alist_multi
+      |> Map.filter_map ~f:(function
+        | [] -> None
+        | x -> Some x)
     in
     { processes = Ops.processes ops
     ; input =
@@ -87,6 +110,7 @@ struct
     ; internal =
         List.map traced.internal_signals ~f:(fun { signal; mangled_names } ->
           port signal mangled_names)
+    ; memories
     }
   ;;
 
@@ -101,7 +125,7 @@ struct
     }
 
   let with_processes ?config f testbench =
-    let ({ processes; input; output; internal = _ } as ports_and_processes) =
+    let ({ processes; input; output; internal = _; memories = _ } as ports_and_processes) =
       create ?config f
     in
     let testbench_processes = testbench input output in
@@ -110,7 +134,7 @@ struct
   ;;
 
   let with_vcd ?config ~vcd f testbench =
-    let ({ processes; input; output; internal } as ports_and_processes) =
+    let ({ processes; input; output; internal; memories = _ } as ports_and_processes) =
       create ?config f
     in
     let vcd = Vcd.create vcd (Input.to_list input @ Output.to_list output @ internal) in
@@ -124,7 +148,7 @@ struct
   ;;
 
   let with_waveterm ?config f testbench =
-    let ({ processes; input; output; internal } as ports_and_processes) =
+    let ({ processes; input; output; internal; memories = _ } as ports_and_processes) =
       create ?config f
     in
     let { Waveterm.processes = waveterm_processes; waveform } =

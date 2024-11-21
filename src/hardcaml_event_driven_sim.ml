@@ -1,11 +1,12 @@
 open! Core
+module Clock_domain_splitting = Clock_domain_splitting
 module Config = With_interface.Config
-module Logic = Logic
 module Four_state_logic = Four_state_logic
-module Two_state_logic = Two_state_logic
-module Vcd = Vcd
+module Logic = Logic
 module Ops = Ops
 module Port = Port
+module Two_state_logic = Two_state_logic
+module Vcd = Vcd
 module Waveterm = Waveterm
 module With_interface = With_interface.Make
 

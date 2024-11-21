@@ -13,6 +13,9 @@ module type S = sig
   (** Construct a fake simulation signal for the given Hardcaml signal. *)
   val fake_sim_signal : t -> Hardcaml.Signal.t -> comb Event_driven_sim.Simulator.Signal.t
 
+  (** Returns the underlying memory for a signal used in the simulator. *)
+  val lookup_memory_exn : t -> Hardcaml.Signal.Uid.t -> comb array
+
   (** Compiles Hardcaml circuit into a Event_driven_sim process list.
       Returns the list and a mapping from Hardcaml signals into Event_driven_sim signals.
 
@@ -26,6 +29,19 @@ module type S = sig
           -> inputs:comb Event_driven_sim.Simulator.Signal.t list
           -> comb Event_driven_sim.Simulator.Signal.t)
     -> Hardcaml.Circuit.t
+    -> t
+
+  (** Splits the circuit into clock domains and uses cyclesim to simulate all non-floating
+      clock domains. *)
+  val circuit_to_hybrid_processes
+    :  ?delay:(Hardcaml.Signal.t -> int)
+    -> ?external_insts:
+         (Hardcaml.Signal.t
+          -> inputs:comb Event_driven_sim.Simulator.Signal.t list
+          -> comb Event_driven_sim.Simulator.Signal.t)
+    -> Hardcaml.Circuit.t
+    -> combinational_ops_database:Hardcaml.Combinational_ops_database.t
+    -> random_initializer:Hardcaml.Cyclesim.Config.Random_initializer.t option
     -> t
 end
 

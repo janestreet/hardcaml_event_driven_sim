@@ -11,12 +11,17 @@ module type Config = sig
 end
 
 module Config = struct
-  type t = { is_internal_port : (Hardcaml.Signal.t -> bool) option }
+  type t =
+    { is_internal_port : (Hardcaml.Signal.t -> bool) option
+    ; use_cyclesim : bool
+    }
 
-  let default = { is_internal_port = None }
+  let default = { is_internal_port = None; use_cyclesim = false }
 
   let trace_all =
-    { is_internal_port = Some (fun s -> not (List.is_empty (Hardcaml.Signal.names s))) }
+    { is_internal_port = Some (fun s -> not (List.is_empty (Hardcaml.Signal.names s)))
+    ; use_cyclesim = false
+    }
   ;;
 end
 
@@ -33,6 +38,7 @@ struct
       ; input : Logic.t Port.t Input.t
       ; output : Logic.t Port.t Output.t
       ; internal : Logic.t Port.t list
+      ; memories : Logic.t Array.t list String.Map.t
       }
 
     (** Returns a process that drives a given signal as a clock with a given time between

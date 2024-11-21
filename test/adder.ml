@@ -23,7 +23,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     let open Logic in
     let open Sim.Event_simulator in
     let module Sim_interface = Sim.With_interface (I) (O) in
-    let { Sim_interface.processes; input; output; internal = _ } =
+    let { Sim_interface.processes; input; output; internal = _; memories = _ } =
       Sim_interface.create f
     in
     let input = I.map input ~f:(fun v -> v.signal) in
