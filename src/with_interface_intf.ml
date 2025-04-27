@@ -10,13 +10,29 @@ module type Config = sig
   val trace_all : t
 end
 
-module Config = struct
-  type t = { is_internal_port : (Hardcaml.Signal.t -> bool) option }
+module Sim_mode = struct
+  type t =
+    | Evsim
+    | Hybrid of Hybrid_sim_options.t
 
-  let default = { is_internal_port = None }
+  let default_hybrid = Hybrid Hybrid_sim_options.default
+  let all = [ Evsim; default_hybrid ]
+end
+
+module Config = struct
+  type t =
+    { is_internal_port : (Hardcaml.Signal.t -> bool) option
+    ; sim_mode : Sim_mode.t
+    ; combine_wires : bool
+    }
+
+  let default = { is_internal_port = None; sim_mode = Evsim; combine_wires = false }
 
   let trace_all =
-    { is_internal_port = Some (fun s -> not (List.is_empty (Hardcaml.Signal.names s))) }
+    { is_internal_port = Some (fun s -> not (List.is_empty (Hardcaml.Signal.names s)))
+    ; sim_mode = Evsim
+    ; combine_wires = false
+    }
   ;;
 end
 
@@ -33,16 +49,16 @@ struct
       ; input : Logic.t Port.t Input.t
       ; output : Logic.t Port.t Output.t
       ; internal : Logic.t Port.t list
-      ; memories : Logic.t Array.t list String.Map.t
+      ; memories : Logic.t Hardcaml.Expert.Simulation_memory.t list String.Map.t
       }
 
     (** Returns a process that drives a given signal as a clock with a given time between
         transitions. *)
     val create_clock
       :  ?initial_delay:int
-           (** The offset of the first rising edge of the clock relative to the start of the
-          simulation. The default value is [time], so that all clocks start on the falling
-          edge. *)
+           (** The offset of the first rising edge of the clock relative to the start of
+               the simulation. The default value is [time], so that all clocks start on
+               the falling edge. *)
       -> time:int
       -> Logic.t Event_driven_sim.Simulator.Signal.t
       -> Event_driven_sim.Simulator.Process.t
@@ -97,6 +113,7 @@ module type With_interface = sig
   module type Logic_S = Logic.S
 
   module Config = Config
+  module Sim_mode = Sim_mode
 
   module Make
       (Logic : Logic_S)

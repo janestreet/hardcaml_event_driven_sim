@@ -14,7 +14,7 @@ module Make (Logic : Logic.S) = struct
   let signal_name s =
     match Signal.names s with
     | h :: _ -> h
-    | [] -> "__" ^ Signal.Uid.to_string (Signal.uid s)
+    | [] -> "__" ^ Signal.Type.Uid.to_string (Signal.uid s)
   ;;
 
   let create chan (signals_to_trace : Logic.t Port.t list) =
@@ -39,16 +39,21 @@ module Make (Logic : Logic.S) = struct
         in
         process, var)
     in
-    let scopes = [ Vcd.Scope.create ~name:"traced" ~vars:(List.map vars ~f:snd) () ] in
-    Vcd.write_header chan ~config:Vcd.Config.default ~scopes;
+    let scopes =
+      [ Vcd.Scope.create_auto_hierarchy ~name:"traced" ~vars:(List.map vars ~f:snd) () ]
+    in
+    Vcd.write_header
+      chan
+      ~config:{ Vcd.Config.default with version = "hardcaml-evsim" }
+      ~scopes;
     { chan; processes = List.map vars ~f:fst; changes }
   ;;
 
   let attach_to_simulator { chan; changes; _ } sim =
-    Sim.Debug.at_start_of_time_step sim (fun () -> Hashtbl.clear changes);
     Sim.Debug.at_end_of_time_step sim (fun () ->
       Vcd.write_time chan (Sim.current_time sim);
       Hashtbl.iteri changes ~f:(fun ~key:var ~data ->
-        Vcd.Var.write_string chan var (Logic.to_string data)))
+        Vcd.Var.write_string chan var (Logic.to_string data));
+      Hashtbl.clear changes)
   ;;
 end

@@ -30,7 +30,8 @@ let f i =
            ; write_data = i.I.write_data
            }
         |]
-      ~initialize_to:(Array.init size ~f:(fun i -> Hardcaml.Bits.of_int ~width:8 (i + 1)))
+      ~initialize_to:
+        (Array.init size ~f:(fun i -> Hardcaml.Bits.of_int_trunc ~width:8 (i + 1)))
       size
   in
   { O.read_data = read_data_array.(0) }
@@ -59,7 +60,7 @@ let%expect_test "basic_memory" =
              [ !&(input.I.write_clock) ]
              (let address = ref 0 in
               fun () ->
-                input.I.read_address <-- of_int ~width:4 !address;
+                input.I.read_address <-- of_int_trunc ~width:4 !address;
                 address := min (size - 1) (!address + 1))
          ])
   in

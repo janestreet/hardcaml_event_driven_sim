@@ -11,20 +11,25 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
       ; amount : 'a [@bits 4]
       ; clock : 'a [@bits 1]
       }
-    [@@deriving hardcaml]
+    [@@deriving hardcaml ~rtlprefix:"i$"]
   end
 
   module O = struct
-    type 'a t = { total : 'a [@bits 8] } [@@deriving hardcaml]
+    type 'a t = { total : 'a [@bits 8] } [@@deriving hardcaml ~rtlprefix:"o$"]
   end
 
   (* Increment [total] by [amount] whenever [incr] is high.  Whenever [total] overflows, set
      it to 0.  All values are unsigned. *)
   let f i =
-    let reg_spec = Hardcaml.Reg_spec.create () ~clock:i.I.clock in
+    let reg_spec = Reg_spec.create () ~clock:i.I.clock in
     let total =
       reg_fb reg_spec ~enable:i.I.incr ~width:8 ~f:(fun d ->
-        let d = Uop.(d +: i.I.amount) -- "NEXT" in
+        (* Artificially induce the same effect as a module hierarchy for testing that it
+           is parsed properly. More in-depth testing of the VCD module is done in the main
+           [test_vcd.ml] in the Hardcaml tests, this check is primarily to verify that the
+           event-sim VCD module is calling into the correct version of the Hardcaml VCD
+           functions. *)
+        let d = Uop.(d +: i.I.amount) -- "deep$module$hierarchy$NEXT" in
         mux2 (msb d) (zero 8) (lsbs d))
     in
     { O.total }
@@ -99,79 +104,93 @@ let%expect_test "adder - vcd" =
          ])
   in
   run ~time_limit:150 sim;
+  [%expect.output] |> Hardcaml_test.Test_vcd_hierarchy.add_indentation |> print_endline;
   [%expect
     {|
     $date
       ...
     $end
     $version
-      Hardcaml
+      hardcaml-evsim
     $end
     $comment
       Hardware design in ocaml
     $end
     $timescale 1ns $end
     $scope module traced $end
-    $var wire 1 ! incr $end
-    $var wire 4 " amount $end
-    $var wire 1 # clock $end
-    $var wire 8 $ total $end
-    $var wire 9 % NEXT $end
-    $var wire 1 & gnd $end
+      $var wire 1 & gnd $end
+      $scope module -inputs $end
+        $var wire 4 " amount $end
+        $var wire 1 # clock $end
+        $var wire 1 ! incr $end
+      $upscope $end
+      $scope module -outputs $end
+        $var wire 8 $ total $end
+      $upscope $end
+      $scope module deep $end
+        $scope module module $end
+          $scope module hierarchy $end
+            $var wire 9 % NEXT $end
+          $upscope $end
+        $upscope $end
+      $upscope $end
     $upscope $end
     $enddefinitions $end
     $dumpvars
-    x!
+    x&
     bxxxx "
     x#
+    x!
     bxxxxxxxx $
     bxxxxxxxxx %
-    x&
     $end
     #0
-    b0001 "
+    0&
+    b00000000 $
     1!
+    b0001 "
+    0#
     b000000001 %
     #10
-    b000000010 %
-    1#
     b00000001 $
+    1#
+    b000000010 %
     #20
     0#
     #30
-    b000000011 %
-    1#
     b00000010 $
+    1#
+    b000000011 %
     #40
     0#
     #50
-    b000000100 %
-    1#
     b00000011 $
+    1#
+    b000000100 %
     #60
     0#
     #70
-    b000000101 %
-    1#
     b00000100 $
+    1#
+    b000000101 %
     #80
     0#
     #90
-    b000000110 %
-    1#
     b00000101 $
+    1#
+    b000000110 %
     #100
     0#
     #110
-    b000000111 %
-    1#
     b00000110 $
+    1#
+    b000000111 %
     #120
     0#
     #130
-    b000001000 %
-    1#
     b00000111 $
+    1#
+    b000001000 %
     #140
     0#
     |}]

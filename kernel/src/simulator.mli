@@ -1,7 +1,6 @@
 (** Event_driven_simulator is an interface for writing event driven simulators (the main
     user is hardcaml-event-driven-sim). The simulator frameworks' semantics largely
-    resembles those of VHDL.
-*)
+    resembles those of VHDL. *)
 
 open Core
 
@@ -12,9 +11,8 @@ module type Value_S = sig
 
   (** What to do if there are multiple processes driving the signal?
 
-      `Unresolved - throw an exception
-      `Func - invoke a function with a list of value to determine the result
-  *)
+      `Unresolved - throw an exception `Func - invoke a function with a list of value to
+      determine the result *)
   val resolve_value : [ `Unresolved | `Func of last_value:t -> t list -> t ]
 
   (** Checks if [t] is a correct value for this signal type. *)
@@ -83,27 +81,24 @@ val ( <-- ) : 't Signal.t -> 't -> unit
 
 (** Schedule a change to a signal after a delay.
 
-    The behaviour of this delay is the same as of VHDL transport delay.
-*)
+    The behaviour of this delay is the same as of VHDL transport delay. *)
 val set_after : 't Signal.t -> 't -> delay:int -> unit
 
 val ( <--- ) : 't Signal.t -> 't -> delay:int -> unit
 
-(** Run a simulation until time [time_limit].  *)
+(** Run a simulation until time [time_limit]. *)
 val run : t -> time_limit:int -> unit
 
 module Expert : sig
   (** Schedules a new update.
 
-      This should only be used by the simulation front-end - processes should use functions
-      from [O] module.
-  *)
+      This should only be used by the simulation front-end - processes should use
+      functions from [O] module. *)
   val schedule_external_set : t -> 'value Signal.t -> 'value -> unit
 
   (** Schedules a call to function [f].
 
-      This should only be used by the simulation front-end.
-  *)
+      This should only be used by the simulation front-end. *)
   val schedule_call : t -> delay:int -> f:(unit -> unit) -> unit
 end
 
@@ -120,8 +115,8 @@ module Async : sig
   (** [delay n] returns deferred that will be filled after [n] time steps. *)
   val delay : int -> unit Deferred.t
 
-  (** [wait_for_change sig] returns deferred that will be filled when
-      [sig] changes for the first time. *)
+  (** [wait_for_change sig] returns deferred that will be filled when [sig] changes for
+      the first time. *)
   val wait_for_change : Signal_id.t -> unit Deferred.t
 
   val wait_forever : unit -> unit Deferred.t
@@ -151,7 +146,7 @@ module Debug : sig
 end
 
 module Version_signal : sig
-  (** A signal that keeps track of the state of some external data.  *)
+  (** A signal that keeps track of the state of some external data. *)
 
   val create : unit -> int Signal.t
   val increment : int Signal.t -> unit

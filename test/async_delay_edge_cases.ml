@@ -48,9 +48,9 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     (* Set both [direct] and [delay] to [data] on [clock], but have a wire in the middle
          for [delay]. *)
     let f (i : _ I.t) =
-      let spec = Hardcaml.Reg_spec.create ~clock:i.clock () in
+      let spec = Reg_spec.create ~clock:i.clock () in
       let wire = wire 1 in
-      wire <== i.data;
+      wire <-- i.data;
       { O.direct = reg spec i.data; O.delay = reg spec wire }
     ;;
 
@@ -73,7 +73,6 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
         waves
         ~wave_width:1
         ~display_width:50
-        ~display_height:10
     ;;
 
     (* For both of these tests, the order of operations when the clocks ticks is:
@@ -160,7 +159,6 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
         waves
         ~wave_width:1
         ~display_width:50
-        ~display_height:10
     ;;
 
     (* When [initial_delay=0], both [direct] and [delay] are set with [clock]s old value

@@ -7,6 +7,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   module M = Hardcaml.Async_fifo.Make (struct
       let width = 4
       let log2_depth = 3
+      let optimize_for_same_clock_rate_and_always_reading = false
     end)
 
   module I = M.I
@@ -37,7 +38,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
                  let%bind () = delay 30 in
                  input.I.clock_write <-- of_string "1";
                  let%map () = delay 30 in
-                 if is_gnd !!(output.O.full)
+                 if not (to_bool !!(output.O.full))
                  then (
                    input.I.write_enable <-- of_string "1";
                    input.I.data_in <-- !!(input.I.data_in) +:. 1)
@@ -122,14 +123,14 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
                then input.I.write_enable <-- of_string "0"
                else (
                  input.I.write_enable <-- of_string "1";
-                 if is_gnd !!(input.I.clock_write)
+                 if not (to_bool !!(input.I.clock_write))
                  then
-                   if is_gnd !!(output.O.full)
+                   if not (to_bool !!(output.O.full))
                    then input.I.data_in <-- !!(input.I.data_in) +:. 1))
            ; Sim.Process.create [ !&(input.I.clock_read) ] (fun () ->
-               if is_gnd !!(input.I.clock_read)
+               if not (to_bool !!(input.I.clock_read))
                then
-                 if is_vdd !!(output.O.valid)
+                 if to_bool !!(output.O.valid)
                  then (
                    let current_value = !!(output.O.data_out) in
                    if not (Logic.compare current_value !expected_now = 0)
@@ -170,7 +171,6 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
         ~display_rules
         ~wave_width:(-40)
         ~display_width:130
-        ~display_height:40
   ;;
 
   let%expect_test "reader/writer case" =
@@ -241,5 +241,5 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   ;;
 end
 
-module _ = Test (Hardcaml_event_driven_sim.Four_state_logic)
-module _ = Test (Hardcaml_event_driven_sim.Two_state_logic)
+module%test With_four_state_logic = Test (Hardcaml_event_driven_sim.Four_state_logic)
+module%test With_two_state_logic = Test (Hardcaml_event_driven_sim.Two_state_logic)
