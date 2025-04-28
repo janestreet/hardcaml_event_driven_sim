@@ -8,7 +8,7 @@ let%expect_test "simple comb" =
     let a = of_string "01" +: of_string "10" in
     Hardcaml.Circuit.create_exn ~name:"const" [ output "a" a ]
   in
-  let ops = Sim.Ops.circuit_to_processes circuit in
+  let ops = Sim.Ops.circuit_to_processes circuit ~combine_wires:true in
   let sim = Sim.Event_simulator.create (Sim.Ops.processes ops) in
   let outputs = Hardcaml.Circuit.outputs circuit in
   let a = List.nth_exn outputs 0 in
@@ -23,7 +23,7 @@ let%expect_test "simple time" =
     let a = of_string "01" +: input in
     Hardcaml.Circuit.create_exn ~name:"timed" [ output "a" a ]
   in
-  let ops = Sim.Ops.circuit_to_processes circuit in
+  let ops = Sim.Ops.circuit_to_processes circuit ~combine_wires:true in
   let inputs = Hardcaml.Circuit.inputs circuit in
   let sig_input = Sim.Ops.find_sim_signal ops (List.nth_exn inputs 0) in
   let outputs = Hardcaml.Circuit.outputs circuit in

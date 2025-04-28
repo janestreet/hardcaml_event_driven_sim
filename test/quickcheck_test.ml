@@ -37,7 +37,7 @@ let find_by_name name =
 let event_driven_sim_eval inputs circuit =
   let open Event_driven_sim.Simulator in
   let open Event_driven_sim.Simulator.Async in
-  let ops = Sim.Ops.circuit_to_processes circuit in
+  let ops = Sim.Ops.circuit_to_processes circuit ~combine_wires:true in
   let find_sim_signal = Sim.Ops.find_sim_signal ops in
   let sim_clock_opt =
     find_by_name "clock" (Circuit.inputs circuit) |> Option.map ~f:find_sim_signal
@@ -78,7 +78,7 @@ let event_driven_sim_eval inputs circuit =
   in
   let input_driver =
     Process.create [ !&sim_clock ] (fun () ->
-      if Logic.is_gnd !!sim_clock
+      if not (Logic.to_bool !!sim_clock)
       then (
         match !remaining_inputs with
         | inputs :: rest ->

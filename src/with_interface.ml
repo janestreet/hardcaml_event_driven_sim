@@ -5,6 +5,7 @@ module type Logic_S = Logic.S
 
 module M = With_interface_intf.M
 module Config = With_interface_intf.Config
+module Sim_mode = With_interface_intf.Sim_mode
 
 module Make
     (Logic : Logic_S)
@@ -23,7 +24,7 @@ struct
     ; input : Logic.t Port.t Input.t
     ; output : Logic.t Port.t Output.t
     ; internal : Logic.t Port.t list
-    ; memories : Logic.t Array.t list String.Map.t
+    ; memories : Logic.t Hardcaml.Expert.Simulation_memory.t list String.Map.t
     }
 
   let create_clock ?initial_delay ~time signal =
@@ -64,14 +65,19 @@ struct
       make_circuit_and_io ~is_internal_port:config.is_internal_port f
     in
     let ops =
-      if config.use_cyclesim
-      then (
+      match config.sim_mode with
+      | Hybrid hybrid_sim_options ->
         let combinational_ops_database = Hardcaml.Combinational_ops_database.create () in
         Ops.circuit_to_hybrid_processes
           circuit
+          ~internally_traced_signals:
+            (List.map traced.internal_signals ~f:(fun { signal; mangled_names = _ } ->
+               signal))
+          ~combine_wires:config.combine_wires
           ~combinational_ops_database
-          ~random_initializer:None)
-      else Ops.circuit_to_processes circuit
+          ~random_initializer:None
+          ~config_options:hybrid_sim_options
+      | Evsim -> Ops.circuit_to_processes circuit ~combine_wires:config.combine_wires
     in
     let port base_signal mangled_names =
       { Port.signal = Ops.find_sim_signal ops base_signal; base_signal; mangled_names }

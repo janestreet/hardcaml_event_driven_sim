@@ -40,7 +40,10 @@ module Gates : Comb.Gates with type t = t = struct
     { bits = Bits.select t.bits ~high ~low; mask = Bits.select t.mask ~high ~low }
   ;;
 
-  let ( -- ) t _name = t
+  let ( -- ) ?(loc = Stdlib.Lexing.dummy_pos) t _name =
+    ignore loc;
+    t
+  ;;
 
   let[@inline] op1 op a =
     let open Bits in
@@ -149,6 +152,28 @@ let const t =
 
 let of_string = const
 
+(* Mapped based on how Xilinx maps VHDL states to Verilog states 
+   https://docs.amd.com/r/en-US/ug900-vivado-logic-simulation/VHDL-and-Verilog-Values-Mapping
+*)
+let of_string_9_state ?(strict = false) s =
+  String.map s ~f:(function
+    | '0' -> '0'
+    | '1' -> '1'
+    | 'X' -> 'X'
+    | 'Z' -> 'Z'
+    | 'L' when not strict -> '0'
+    | 'H' when not strict -> '1'
+    | ('U' | 'W' | '-') when not strict -> 'X'
+    | 'U' | 'W' | '-' | 'L' | 'H' ->
+      raise_s
+        [%message
+          "9-state logic string cannot be converted to four-state logic"
+            (s : string)
+            (strict : bool)]
+    | _ -> raise_s [%message "invalid 9-state logic string" s])
+  |> of_string
+;;
+
 (*
    . | 0 1 X Z
    --+--------
@@ -245,3 +270,5 @@ let create_signal ?initial_value ?(resolution = `Unresolved) width =
         let resolution = resolution
       end))
 ;;
+
+let is_twostate = false

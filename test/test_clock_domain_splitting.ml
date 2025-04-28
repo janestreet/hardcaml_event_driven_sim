@@ -19,13 +19,13 @@ end = struct
   ;;
 
   let make_signal_set signals =
-    signals |> List.map ~f:Signal.uid |> Hash_set.of_list (module Signal.Uid)
+    signals |> List.map ~f:Signal.uid |> Hash_set.of_list (module Signal.Type.Uid)
   ;;
 
   let require_single_uid = function
     | [ uid ] -> uid
     | result ->
-      raise_s [%message "Not found or multiple found" (result : Signal.Uid.t list)]
+      raise_s [%message "Not found or multiple found" (result : Signal.Type.Uid.t list)]
   ;;
 
   let check_invariants
@@ -33,8 +33,8 @@ end = struct
     ~(clock_domains :
         Clock_domain_splitting.Copied_circuit.t Clock_domain_splitting.Clock_domain.Map.t)
     =
-    let clock_domain_inputs = Hash_set.create (module Signal.Uid) in
-    let clock_domain_outputs = Hash_set.create (module Signal.Uid) in
+    let clock_domain_inputs = Hash_set.create (module Signal.Type.Uid) in
+    let clock_domain_outputs = Hash_set.create (module Signal.Type.Uid) in
     (* Construct sets of all signals in the original circuit that are either inputs to a
        clock domain or outputs of a clock domain *)
     clock_domains
@@ -48,7 +48,8 @@ end = struct
           List.filter_map new_signals_by_original_uids ~f:(fun (old_signal, new_signal) ->
             match new_signal with
             | Internal new_signal | Output { output_wire = _; output_driver = new_signal }
-              -> Option.some_if ([%equal: Signal.Uid.t] new_signal new_uid) old_signal)
+              ->
+              Option.some_if ([%equal: Signal.Type.Uid.t] new_signal new_uid) old_signal)
           |> require_single_uid
         in
         Hash_set.add clock_domain_inputs old_input_signal_uid);
@@ -57,7 +58,8 @@ end = struct
           List.filter_map new_signals_by_original_uids ~f:(fun (old_signal, new_signal) ->
             match new_signal with
             | Internal new_signal | Output { output_wire = new_signal; output_driver = _ }
-              -> Option.some_if ([%equal: Signal.Uid.t] new_signal new_uid) old_signal)
+              ->
+              Option.some_if ([%equal: Signal.Type.Uid.t] new_signal new_uid) old_signal)
           |> require_single_uid
         in
         Hash_set.add clock_domain_outputs old_output_signal_uid));
@@ -99,17 +101,17 @@ end = struct
       raise_s
         [%message
           "Some circuit inputs not in a clock domain"
-            (circuit_inputs : Signal.Uid.t Hash_set.t)];
+            (circuit_inputs : Signal.Type.Uid.t Hash_set.t)];
     if not (Hash_set.is_empty circuit_outputs)
     then
       raise_s
         [%message
           "Some circuit outputs not in a clock domain"
-            (circuit_outputs : Signal.Uid.t Hash_set.t)]
+            (circuit_outputs : Signal.Type.Uid.t Hash_set.t)]
   ;;
 
   let circuit_signals_by_uid circuit =
-    let signals_by_uid = Hashtbl.create (module Signal.Uid) in
+    let signals_by_uid = Hashtbl.create (module Signal.Type.Uid) in
     circuit
     |> Circuit.signal_graph
     |> Signal_graph.iter ~f:(fun signal ->
@@ -121,7 +123,9 @@ end = struct
     let circuit = With_interface.create_exn circuit ~name:"test" in
     let get_old_signal_by_uid = circuit_signals_by_uid circuit |> Staged.unstage in
     let clock_domains =
-      Hardcaml_event_driven_sim.Clock_domain_splitting.group_by_clock_domain circuit
+      Hardcaml_event_driven_sim.Clock_domain_splitting.group_by_clock_domain
+        (Circuit.signal_graph circuit)
+        ~extra_outputs:[]
     in
     clock_domains
     |> Map.to_alist
@@ -137,7 +141,7 @@ end = struct
           | Internal new_signal -> [ new_signal, old_signal ]
           | Output { output_wire; output_driver } ->
             [ output_wire, old_signal; output_driver, old_signal ])
-        |> Hashtbl.of_alist_exn (module Signal.Uid)
+        |> Hashtbl.of_alist_exn (module Signal.Type.Uid)
       in
       circuit
       |> Circuit.signal_graph
@@ -156,7 +160,7 @@ end = struct
             match Signal.names old_signal |> List.hd with
             | None ->
               let old_uid = Signal.uid old_signal in
-              [%string "(%{old_uid#Signal.Uid})"]
+              [%string "(%{old_uid#Signal.Type.Uid})"]
             | Some name -> name
           in
           let kind = if show_kind then Signal.Type.to_string new_signal else "" in
@@ -220,8 +224,8 @@ module%test _ = struct
 
   let circuit ({ clock_1; clock_2 } : _ I.t) =
     let open Signal in
-    let reg_1 = reg (Hardcaml.Reg_spec.create () ~clock:clock_1) (zero 1) -- "reg_1" in
-    let reg_2 = reg (Hardcaml.Reg_spec.create () ~clock:clock_2) (zero 1) -- "reg_2" in
+    let reg_1 = reg (Reg_spec.create () ~clock:clock_1) (zero 1) -- "reg_1" in
+    let reg_2 = reg (Reg_spec.create () ~clock:clock_2) (zero 1) -- "reg_2" in
     let xor = (reg_1 ^: reg_2) -- "xor" in
     { O.out = xor }
   ;;
@@ -255,6 +259,37 @@ module%test _ = struct
       xor:            Op[id:16 bits:1 names:__7 deps:14,15] = xor
       |}]
   ;;
+
+  let%expect_test "show clock domain stats" =
+    let module With_interface = Circuit.With_interface (I) (O) in
+    let circuit = With_interface.create_exn circuit ~name:"test" in
+    let stats =
+      Clock_domain_splitting.For_testing.Stats.create (Circuit.signal_graph circuit)
+    in
+    let clock_domain_size =
+      Clock_domain_splitting.For_testing.Stats.clock_domain_size stats
+    in
+    Map.iteri clock_domain_size ~f:(fun ~key:clock_domain ~data:size ->
+      print_s
+        [%message
+          (clock_domain : Clock_domain_splitting.For_testing.Clock_domain.t) (size : int)]);
+    [%expect
+      {|
+      ((clock_domain Any) (size 2))
+      ((clock_domain (Clocked ((clock 2) (edge Rising)))) (size 1))
+      ((clock_domain (Clocked ((clock 4) (edge Rising)))) (size 1))
+      ((clock_domain (Floating Input)) (size 4))
+      ((clock_domain (Floating Multiple_clock_domains)) (size 2))
+      |}];
+    Clock_domain_splitting.For_testing.Stats.to_stat_summary_string stats |> print_endline;
+    [%expect
+      {|
+      num total nodes: 10
+      num nodes not any: 8
+      num clocked nodes: 2
+      percent of clocked non-any nodes: 25%
+      |}]
+  ;;
 end
 
 module%test _ = struct
@@ -275,12 +310,12 @@ module%test _ = struct
     let open Signal in
     let reg_1_output = wire 1 -- "reg1_output" in
     let reg_1_input = inpt +: reg_1_output -- "reg1_input" in
-    let reg_1 = reg (Hardcaml.Reg_spec.create () ~clock:clock_1) reg_1_input -- "reg_1" in
-    reg_1_output <== reg_1;
+    let reg_1 = reg (Reg_spec.create () ~clock:clock_1) reg_1_input -- "reg_1" in
+    reg_1_output <-- reg_1;
     let reg_2_output = wire 1 -- "reg2_output" in
     let reg_2_input = reg_1_output +: (reg_2_output ^: zero 1) in
-    let reg_2 = reg (Hardcaml.Reg_spec.create () ~clock:clock_2) reg_2_input -- "reg_2" in
-    reg_2_output <== reg_2;
+    let reg_2 = reg (Reg_spec.create () ~clock:clock_2) reg_2_input -- "reg_2" in
+    reg_2_output <-- reg_2;
     { O.out = reg_2 }
   ;;
 
@@ -343,7 +378,7 @@ module%test _ = struct
     let read_addresses = [| zero |] in
     let mem = multiport_memory 1 ~write_ports ~read_addresses in
     (match mem.(0) with
-     | Mem_read_port { memory; _ } -> set_names memory [ "mem" ]
+     | Mem_read_port { memory; _ } -> set_names memory [ { name = "mem"; loc = [%here] } ]
      | _ -> ());
     let out = mem.(0) -- "mem_read_out" in
     { O.out }
@@ -402,7 +437,7 @@ module%test _ = struct
     let read_addresses = Array.of_list [ zero ] in
     let mem = multiport_memory 1 ~write_ports ~read_addresses in
     (match mem.(0) with
-     | Mem_read_port { memory; _ } -> set_names memory [ "mem" ]
+     | Mem_read_port { memory; _ } -> set_names memory [ { name = "mem"; loc = [%here] } ]
      | _ -> ());
     let out = mem.(0) -- "mem_read_out" in
     { O.out }
@@ -451,15 +486,15 @@ module%test _ = struct
         ]
     in
     let read_address =
-      reg (Hardcaml.Reg_spec.create () ~clock:read_clock) zero -- "read_addr_reg"
+      reg (Reg_spec.create () ~clock:read_clock) zero -- "read_addr_reg"
     in
     let read_addresses = Array.of_list [ read_address ] in
     let mem = multiport_memory 1 ~write_ports ~read_addresses in
     (match mem.(0) with
-     | Mem_read_port { memory; _ } -> set_names memory [ "mem" ]
+     | Mem_read_port { memory; _ } -> set_names memory [ { name = "mem"; loc = [%here] } ]
      | _ -> ());
     let read_output =
-      reg (Hardcaml.Reg_spec.create () ~clock:read_clock) (mem.(0) -- "mem_read_out")
+      reg (Reg_spec.create () ~clock:read_clock) (mem.(0) -- "mem_read_out")
       -- "read_output_reg"
     in
     { O.out = read_output }
@@ -516,11 +551,11 @@ module%test _ = struct
           }
         ]
     in
-    let read_address = reg (Hardcaml.Reg_spec.create () ~clock) zero -- "read_addr_reg" in
+    let read_address = reg (Reg_spec.create () ~clock) zero -- "read_addr_reg" in
     let read_addresses = Array.of_list [ read_address ] in
     let mem = multiport_memory 1 ~write_ports ~read_addresses in
     (match mem.(0) with
-     | Mem_read_port { memory; _ } -> set_names memory [ "mem" ]
+     | Mem_read_port { memory; _ } -> set_names memory [ { name = "mem"; loc = [%here] } ]
      | _ -> ());
     let out = mem.(0) in
     { O.out }
@@ -561,10 +596,8 @@ module%test _ = struct
     let open Signal in
     let zero = zero 1 -- "zero" in
     let inverted_clock = ~:clock -- "inverted_clock" in
-    let reg_1 = reg (Hardcaml.Reg_spec.create ~clock ()) zero -- "reg_1" in
-    let reg_2 =
-      reg (Hardcaml.Reg_spec.create ~clock:inverted_clock ()) reg_1 -- "reg_2"
-    in
+    let reg_1 = reg (Reg_spec.create ~clock ()) zero -- "reg_1" in
+    let reg_2 = reg (Reg_spec.create ~clock:inverted_clock ()) reg_1 -- "reg_2" in
     { O.out = reg_2 }
   ;;
 
@@ -620,16 +653,14 @@ module%test _ = struct
           }
         ]
     in
-    let read_address =
-      reg (Hardcaml.Reg_spec.create () ~clock:clock2) zero -- "read1_addr_reg"
-    in
+    let read_address = reg (Reg_spec.create () ~clock:clock2) zero -- "read1_addr_reg" in
     let read_port_1_output = wire 1 -- "read2_addr" in
     let read_addresses = Array.of_list [ read_address; read_port_1_output ] in
     let mem = multiport_memory 1 ~write_ports ~read_addresses in
     (match mem.(0) with
-     | Mem_read_port { memory; _ } -> set_names memory [ "mem" ]
+     | Mem_read_port { memory; _ } -> set_names memory [ { name = "mem"; loc = [%here] } ]
      | _ -> ());
-    read_port_1_output <== mem.(0);
+    read_port_1_output <-- mem.(0);
     let out = mem.(1) in
     { O.out }
   ;;
@@ -674,13 +705,11 @@ module%test _ = struct
     let open Signal in
     let zero = zero 1 -- "zero" in
     let write_ports = [||] in
-    let read_address =
-      reg (Hardcaml.Reg_spec.create () ~clock) zero -- "read1_addr_reg"
-    in
+    let read_address = reg (Reg_spec.create () ~clock) zero -- "read1_addr_reg" in
     let read_addresses = [| read_address |] in
     let mem = multiport_memory 1 ~write_ports ~read_addresses in
     (match mem.(0) with
-     | Mem_read_port { memory; _ } -> set_names memory [ "mem" ]
+     | Mem_read_port { memory; _ } -> set_names memory [ { name = "mem"; loc = [%here] } ]
      | _ -> ());
     let out = mem.(0) in
     { O.out }
@@ -716,8 +745,8 @@ module%test _ = struct
     let xor = (zero ^: one) -- "xor" in
     let register_output = wire 1 -- "wire" in
     let value = mux2 register_output xor inpt -- "value" in
-    let register = reg (Hardcaml.Reg_spec.create () ~clock) value -- "read1_addr_reg" in
-    register_output <== register;
+    let register = reg (Reg_spec.create () ~clock) value -- "read1_addr_reg" in
+    register_output <-- register;
     { O.out = register }
   ;;
 
@@ -767,8 +796,8 @@ module%test _ = struct
     let open Signal in
     let one = one 1 -- "one" in
     let xor = (inpt ^: one) -- "xor" in
-    let r1 = reg (Hardcaml.Reg_spec.create () ~clock:clock1) xor -- "r1" in
-    let r2 = reg (Hardcaml.Reg_spec.create () ~clock:clock2) xor -- "r2" in
+    let r1 = reg (Reg_spec.create () ~clock:clock1) xor -- "r1" in
+    let r2 = reg (Reg_spec.create () ~clock:clock2) xor -- "r2" in
     let out = r1 +: r2 -- "add" in
     { O.out }
   ;;
@@ -813,6 +842,7 @@ module%test _ = struct
       (* 8 deep, 4 wide *)
       let width = 4
       let log2_depth = 3
+      let optimize_for_same_clock_rate_and_always_reading = false
     end)
 
   let fifo () =
