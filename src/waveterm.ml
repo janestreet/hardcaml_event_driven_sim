@@ -16,10 +16,11 @@ module Make (Logic : Logic.S) = struct
       List.map ports_to_events ~f:(fun (port, events) ->
         List.map port.mangled_names ~f:(fun name ->
           let width = Hardcaml.Signal.width port.base_signal in
+          let wave_format = Hardcaml.Signal.Type.get_wave_format port.base_signal in
           let wave =
             if width = 1
             then Wave.Binary (name, events)
-            else Data (name, events, Binary, Left)
+            else Data (name, events, wave_format, Left)
           in
           wave))
       |> List.concat

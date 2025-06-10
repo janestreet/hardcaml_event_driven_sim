@@ -89,6 +89,18 @@ val ( <--- ) : 't Signal.t -> 't -> delay:int -> unit
 (** Run a simulation until time [time_limit]. *)
 val run : t -> time_limit:int -> unit
 
+(** Returns a process that drives a given signal as a clock with a given time between
+    transitions. *)
+val create_clock
+  :  ?initial_delay:int
+       (** The offset of the first rising edge of the clock relative to the start of the
+           simulation. The default value is [time], so that all clocks start on the
+           falling edge. *)
+  -> time:int
+  -> toggle:('a -> 'a)
+  -> 'a Signal.t
+  -> Process.t
+
 module Expert : sig
   (** Schedules a new update.
 

@@ -152,7 +152,7 @@ let const t =
 
 let of_string = const
 
-(* Mapped based on how Xilinx maps VHDL states to Verilog states 
+(* Mapped based on how Xilinx maps VHDL states to Verilog states
    https://docs.amd.com/r/en-US/ug900-vivado-logic-simulation/VHDL-and-Verilog-Values-Mapping
 *)
 let of_string_9_state ?(strict = false) s =

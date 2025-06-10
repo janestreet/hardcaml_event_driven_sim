@@ -79,10 +79,10 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
                 ""))
               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
             (width 4) (max_time 90))
-           Binary Left)
+           (Bit_or Binary) Left)
           (Data b
            ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4) (max_time 90))
-           Binary Left)
+           (Bit_or Binary) Left)
           (Data c
            ((t
              ((data
@@ -90,7 +90,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
                 ""))
               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
             (width 4) (max_time 90))
-           Binary Left)))
+           (Bit_or Binary) Left)))
         (ports
          (((type_ Internal) (port_name a) (width 4))
           ((type_ Internal) (port_name b) (width 4))

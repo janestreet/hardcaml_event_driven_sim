@@ -195,14 +195,14 @@ let schedule_external_set t signal value =
 ;;
 
 let rec progress_time_to t new_time =
-  match Pairing_heap.top t.updates with
+  match
+    Pairing_heap.pop_if t.updates (fun next_update ->
+      Int.( = ) (Scheduled_event.time next_update) new_time)
+  with
   | None -> ()
-  | Some next_update ->
-    if Int.( = ) (Scheduled_event.time next_update) new_time
-    then (
-      let new_update = Pairing_heap.pop_exn t.updates in
-      Queue.enqueue t.delta_updates new_update;
-      progress_time_to t new_time)
+  | Some new_update ->
+    Queue.enqueue t.delta_updates new_update;
+    progress_time_to t new_time
 ;;
 
 let progress_time t =
@@ -434,6 +434,18 @@ let rec run t ~time_limit =
   step t;
   if current_time t < time_limit && Queue.length t.delta_updates <> 0
   then run t ~time_limit
+;;
+
+let create_clock ?initial_delay ~time ~toggle signal =
+  let initial_delay = Option.value initial_delay ~default:time in
+  let initial_iteration = ref true in
+  let toggle ~delay = (signal <--- toggle !!signal) ~delay in
+  Process.create [ !&signal ] (fun () ->
+    match !initial_iteration with
+    | true ->
+      initial_iteration := false;
+      toggle ~delay:initial_delay
+    | false -> toggle ~delay:time)
 ;;
 
 module Debug = struct

@@ -359,12 +359,10 @@ module Make (Comb : Logic.S) = struct
         |> Map.of_alist_multi (module Signal.Type.Uid)
       in
       memories
-      |> Map.map_keys_exn
-           (module Signal.Type.Uid)
-           ~f:(fun new_uid ->
-             match Map.find_exn old_signal_by_new_signal new_uid with
-             | [ old_uid ] -> old_uid
-             | _ -> raise_s [%message "Multiple uids for memory"])
+      |> Map.map_keys_exn (module Signal.Type.Uid) ~f:(fun new_uid ->
+        match Map.find_exn old_signal_by_new_signal new_uid with
+        | [ old_uid ] -> old_uid
+        | _ -> raise_s [%message "Multiple uids for memory"])
     in
     aux_create ~processes ~find_sim_signal ~memories
   ;;
@@ -481,10 +479,8 @@ module Make (Comb : Logic.S) = struct
              new_signal, old_signal)
       |> Hashtbl.of_alist_exn (module Signal.Type.Uid)
     in
-    Map.map_keys_exn
-      (module Signal.Type.Uid)
-      memories
-      ~f:(fun new_uid -> Hashtbl.find_exn new_uid_to_old_uid new_uid)
+    Map.map_keys_exn (module Signal.Type.Uid) memories ~f:(fun new_uid ->
+      Hashtbl.find_exn new_uid_to_old_uid new_uid)
   ;;
 
   type signal_port_list = (Signal.t * Hardcaml.Bits.t ref) list
@@ -516,10 +512,11 @@ module Make (Comb : Logic.S) = struct
               (* Trace all memories so that [Cyclesim.lookup_mem_by_name] works below *)
           ; combinational_ops_database
           ; deduplicate_signals =
-              true
-              (* We can set this to true because we only care about the input and output
-                 names of the circuit staying the same (and the names of memories), which
-                 deduplicating preserves *)
+              false
+              (* [Hardcaml.Dedup.deduplicate] only deduplicates signals without a name.
+                 Since all signals have a name due to the clock domain splitting code,
+                 setting this to true won't do anything (it actually makes things a smidge
+                 slower because it adds a wire between every register and its output). *)
           ; store_circuit = false
           ; random_initializer
           }

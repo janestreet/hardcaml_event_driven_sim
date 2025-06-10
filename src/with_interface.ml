@@ -28,16 +28,7 @@ struct
     }
 
   let create_clock ?initial_delay ~time signal =
-    let open Simulator in
-    let initial_delay = Option.value initial_delay ~default:time in
-    let initial_iteration = ref true in
-    let toggle ~delay = (signal <--- Logic.( ~: ) !!signal) ~delay in
-    Simulator.Process.create [ !&signal ] (fun () ->
-      match !initial_iteration with
-      | true ->
-        initial_iteration := false;
-        toggle ~delay:initial_delay
-      | false -> toggle ~delay:time)
+    Simulator.create_clock ?initial_delay ~time ~toggle:Logic.( ~: ) signal
   ;;
 
   let traced = Hardcaml.Cyclesim.Private.Traced_nodes.create
