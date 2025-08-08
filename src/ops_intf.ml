@@ -17,7 +17,7 @@ module type S = sig
   val lookup_memory_exn
     :  t
     -> Hardcaml.Signal.Type.Uid.t
-    -> comb Hardcaml.Expert.Simulation_memory.t
+    -> comb Hardcaml.Private.Simulation_memory.t
 
   (** Compiles Hardcaml circuit into a Event_driven_sim process list. Returns the list and
       a mapping from Hardcaml signals into Event_driven_sim signals.

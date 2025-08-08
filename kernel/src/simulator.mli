@@ -46,7 +46,7 @@ end
 module Process : sig
   type t
 
-  val create : Signal_id.t list -> (unit -> unit) -> t
+  val create : ?here:Stdlib.Lexing.position -> Signal_id.t list -> (unit -> unit) -> t
 end
 
 type t
@@ -89,6 +89,19 @@ val ( <--- ) : 't Signal.t -> 't -> delay:int -> unit
 (** Run a simulation until time [time_limit]. *)
 val run : t -> time_limit:int -> unit
 
+(** Returns a process that drives a given signal as a clock with a given time between
+    transitions. *)
+val create_clock
+  :  ?initial_delay:int
+       (** The offset of the first rising edge of the clock relative to the start of the
+           simulation. The default value is [time], so that all clocks start on the
+           falling edge. *)
+  -> ?here:Stdlib.Lexing.position
+  -> time:int
+  -> toggle:('a -> 'a)
+  -> 'a Signal.t
+  -> Process.t
+
 module Expert : sig
   (** Schedules a new update.
 
@@ -110,7 +123,10 @@ module Async : sig
   module Ivar = Mini_async.Ivar
 
   (** Create a process that repeatedly run a given function. *)
-  val create_process : (unit -> unit Deferred.t) -> Process.t
+  val create_process
+    :  ?here:Stdlib.Lexing.position
+    -> (unit -> unit Deferred.t)
+    -> Process.t
 
   (** [delay n] returns deferred that will be filled after [n] time steps. *)
   val delay : int -> unit Deferred.t

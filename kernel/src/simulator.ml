@@ -17,14 +17,14 @@ module Delta_step = struct
     { time : int
     ; delta : int
     }
-  [@@deriving equal, fields ~getters, sexp_of]
+  [@@deriving equal ~localize, fields ~getters, sexp_of]
 
   let zero = { time = 0; delta = 0 }
   let before_zero = { time = 0; delta = -1 }
 end
 
 module Process_id = struct
-  type t = int [@@deriving hash, compare, sexp]
+  type t = int [@@deriving hash, compare ~localize, sexp]
 
   let empty = -1
 end
@@ -112,6 +112,8 @@ type t =
   ; mutable current_step : Delta_step.t
   ; mutable current_sequential_id : int
   ; simulation_callbacks : simulation_callbacks
+  ; process_id_to_callpos : Source_code_position.t Hashtbl.M(Process_id).t
+  (* Map process id back to location of process creation for error messages *)
   }
 [@@deriving fields ~getters]
 
@@ -124,7 +126,8 @@ let schedule_call t ~delay ~f =
   in
   t.current_sequential_id <- t.current_sequential_id + 1;
   match Int.sign delay with
-  | Sign.Neg -> failwith "negative delay"
+  | Sign.Neg ->
+    raise_s [%message "cannot schedule update with negative delay" (delay : int)]
   | Sign.Zero -> Queue.enqueue t.delta_updates scheduled_update
   | Sign.Pos -> Pairing_heap.add t.updates scheduled_update
 ;;
@@ -159,7 +162,16 @@ let apply_update
       if signal.writer_process = Process_id.empty
       then signal.writer_process <- process_id
       else if signal.writer_process <> process_id
-      then failwith "two processes attempt to drive an unresolved signal";
+      then (
+        let expected_process =
+          Hashtbl.find simulator.process_id_to_callpos signal.writer_process
+        in
+        let got_process = Hashtbl.find simulator.process_id_to_callpos process_id in
+        raise_s
+          [%message
+            "two processes attempt to drive an unresolved signal"
+              (expected_process : Source_code_position.t option)
+              (got_process : Source_code_position.t option)]);
       value
     | `Func resolve_func ->
       Hashtbl.set signal.values ~key:process_id ~data:value;
@@ -195,14 +207,14 @@ let schedule_external_set t signal value =
 ;;
 
 let rec progress_time_to t new_time =
-  match Pairing_heap.top t.updates with
+  match
+    Pairing_heap.pop_if t.updates (fun next_update ->
+      Int.( = ) (Scheduled_event.time next_update) new_time)
+  with
   | None -> ()
-  | Some next_update ->
-    if Int.( = ) (Scheduled_event.time next_update) new_time
-    then (
-      let new_update = Pairing_heap.pop_exn t.updates in
-      Queue.enqueue t.delta_updates new_update;
-      progress_time_to t new_time)
+  | Some new_update ->
+    Queue.enqueue t.delta_updates new_update;
+    progress_time_to t new_time
 ;;
 
 let progress_time t =
@@ -252,7 +264,22 @@ let[@inline] set signal value = set_after ~delay:0 signal value
 let ( <--- ) = set_after
 let ( <-- ) = set
 
-module Async = struct
+module rec Async : sig
+  module Let_syntax = Mini_async.Let_syntax.Let_syntax
+  module Deferred = Mini_async.Deferred
+  module Ivar = Mini_async.Ivar
+
+  val create_process
+    :  ?here:Stdlib.Lexing.position
+    -> (unit -> unit Deferred.t)
+    -> Process.t
+
+  val delay : int -> unit Deferred.t
+  val wait_for_change : Signal_id.t -> unit Deferred.t
+  val wait_forever : unit -> unit Deferred.t
+  val forever : (unit -> unit Deferred.t) -> unit Deferred.t
+  val current_time : unit -> int
+end = struct
   module Let_syntax = Mini_async.Let_syntax.Let_syntax
   module Deferred = Mini_async.Deferred
   module Ivar = Mini_async.Ivar
@@ -289,9 +316,9 @@ module Async = struct
     preserve_process_id (Ivar.read v)
   ;;
 
-  let create_process f =
+  let create_process ?(here = Stdlib.Lexing.dummy_pos) f =
     let rec run () = Deferred.upon (f ()) run in
-    run
+    { Process.here; run }
   ;;
 
   let rec forever_helper f = Deferred.upon (f ()) (fun () -> forever_helper f)
@@ -302,7 +329,13 @@ module Async = struct
   ;;
 end
 
-module Change_monitor = struct
+and Change_monitor : sig
+  type t
+
+  val create : Signal_id.t list -> t
+  val wait_with_callback : t -> (unit -> unit) -> unit
+  val wait : t -> unit Async.Deferred.t
+end = struct
   (* Module responsible for waiting until a signal changes its value. *)
   open Async
 
@@ -354,20 +387,33 @@ module Change_monitor = struct
   ;;
 end
 
-module Process = struct
-  type t = unit -> unit
+and Process : sig
+  type t =
+    { here : Source_code_position.t
+    ; run : unit -> unit
+    }
 
-  let create sensitivity_list update_f =
+  val create : ?here:Stdlib.Lexing.position -> Signal_id.t list -> (unit -> unit) -> t
+end = struct
+  type t =
+    { here : Source_code_position.t
+    ; run : unit -> unit
+    }
+
+  let create ?(here = Stdlib.Lexing.dummy_pos) sensitivity_list update_f =
     let change_monitor = Change_monitor.create sensitivity_list in
     let rec run () =
       update_f ();
       Change_monitor.wait_with_callback change_monitor run
     in
-    run
+    { here; run }
   ;;
 end
 
-let create processes =
+let create (processes : Process.t list) =
+  let processes_with_ids =
+    List.mapi processes ~f:(fun process_id process -> process_id, process)
+  in
   let t =
     { delta_updates = Queue.create ()
     ; delta_updates_now = Queue.create ()
@@ -375,13 +421,17 @@ let create processes =
     ; current_step = Delta_step.zero
     ; current_sequential_id = 1
     ; simulation_callbacks = { at_start_of_time_step = []; at_end_of_time_step = [] }
+    ; process_id_to_callpos =
+        List.map processes_with_ids ~f:(fun (process_id, process) ->
+          process_id, process.here)
+        |> Hashtbl.of_alist_exn (module Process_id)
     }
   in
   (* run initial iteration of all processes *)
-  List.iteri processes ~f:(fun process_id process_f ->
+  List.iter processes_with_ids ~f:(fun (process_id, process) ->
     Global_state.current_simulator := Some t;
     Global_state.current_process_id := Some process_id;
-    process_f ();
+    process.run ();
     Global_state.current_simulator := None;
     Global_state.current_process_id := None);
   t
@@ -434,6 +484,18 @@ let rec run t ~time_limit =
   step t;
   if current_time t < time_limit && Queue.length t.delta_updates <> 0
   then run t ~time_limit
+;;
+
+let create_clock ?initial_delay ?(here = Stdlib.Lexing.dummy_pos) ~time ~toggle signal =
+  let initial_delay = Option.value initial_delay ~default:time in
+  let initial_iteration = ref true in
+  let toggle ~delay = (signal <--- toggle !!signal) ~delay in
+  Process.create ~here [ !&signal ] (fun () ->
+    match !initial_iteration with
+    | true ->
+      initial_iteration := false;
+      toggle ~delay:initial_delay
+    | false -> toggle ~delay:time)
 ;;
 
 module Debug = struct

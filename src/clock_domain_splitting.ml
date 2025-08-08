@@ -6,7 +6,11 @@ module Signal = struct
   include Signal
 
   let hash a = Type.Uid.hash (uid a)
-  let compare a b = Type.Uid.compare (uid a) (uid b)
+
+  let%template compare a b =
+    (Type.Uid.compare [@mode m]) ((uid [@mode m]) a) ((uid [@mode m]) b) [@nontail]
+  [@@mode m = (local, global)]
+  ;;
 
   let sexp_of_t t =
     match names t with
@@ -20,7 +24,7 @@ module Reset_spec = struct
     { signal : Signal.t
     ; edge : Edge.t
     }
-  [@@deriving compare, equal, sexp_of]
+  [@@deriving compare ~localize, equal ~localize, sexp_of]
 end
 
 module Clock_spec = struct
@@ -30,7 +34,7 @@ module Clock_spec = struct
       ; edge : Edge.t
       ; reset : Reset_spec.t option [@sexp.option]
       }
-    [@@deriving compare, equal, sexp_of]
+    [@@deriving compare ~localize, equal ~localize, sexp_of]
   end
 
   include T
@@ -42,7 +46,7 @@ module Why_floating = struct
     { input : bool
     ; merged_clock_domains : Clock_spec.Set.t
     }
-  [@@deriving compare, equal, sexp_of]
+  [@@deriving compare ~localize, equal ~localize, sexp_of]
 
   let merge
     { input = i1; merged_clock_domains = m1 }
@@ -61,7 +65,7 @@ module Clock_domain_with_any = struct
     | Any
     | Clocked of Clock_spec.t
     | Floating of Why_floating.t
-  [@@deriving equal]
+  [@@deriving equal ~localize]
 
   (* values of [t] form a lattice with [Any] as the bottom element, [Floating]
      as the top element, and all [Clocked] values in between. [merge] is the join of 2
@@ -279,7 +283,7 @@ module Clock_domain = struct
     type t =
       | Clocked of Clock_spec.t
       | Floating
-    [@@deriving compare, equal, sexp_of]
+    [@@deriving compare ~localize, equal ~localize, sexp_of]
   end
 
   include T
@@ -735,7 +739,7 @@ module For_testing = struct
         | Input_and_one_clock_domain
         | Input_and_multiple_clock_domains
         | Multiple_clock_domains
-      [@@deriving compare, sexp_of]
+      [@@deriving compare ~localize, sexp_of]
     end
 
     module T = struct
@@ -743,7 +747,7 @@ module For_testing = struct
         | Any
         | Clocked of Clock_spec.t
         | Floating of Floating_reason.t
-      [@@deriving compare, sexp_of]
+      [@@deriving compare ~localize, sexp_of]
     end
 
     include T

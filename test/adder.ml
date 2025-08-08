@@ -1,7 +1,7 @@
 open Hardcaml.Signal
 
-module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
-  module Sim = Hardcaml_event_driven_sim.Make (Logic)
+module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
+  open Simulator
 
   let bits = 4
 
@@ -21,8 +21,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
 
   let%expect_test "adder" =
     let open Logic in
-    let open Sim.Event_simulator in
-    let module Sim_interface = Sim.With_interface (I) (O) in
+    let open Simulator in
+    let module Sim_interface = With_interface (I) (O) in
     let { Sim_interface.processes; input; output; internal = _; memories = _ } =
       Sim_interface.create f
     in
@@ -55,8 +55,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
 
   let%expect_test "waveform" =
     let open Logic in
-    let open Sim.Event_simulator in
-    let module Sim_interface = Sim.With_interface (I) (O) in
+    let open Simulator in
+    let module Sim_interface = With_interface (I) (O) in
     let waves, { Sim_interface.ports_and_processes = _; simulator } =
       Sim_interface.with_waveterm f (fun input _ ->
         let input = I.map input ~f:(fun v -> v.signal) in
@@ -66,8 +66,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
         ])
     in
     run ~time_limit:100 simulator;
-    Core.print_s [%message (waves : Hardcaml_event_driven_sim.Waveterm.Waveform.t)];
-    Hardcaml_event_driven_sim.Waveterm.Waveform.expect waves ~wave_width:(-3);
+    Core.print_s [%message (waves : Waveterm.Waveform.t)];
+    Waveterm.Waveform.expect waves ~wave_width:(-3);
     [%expect
       {|
       (waves
@@ -79,10 +79,10 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
                 ""))
               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
             (width 4) (max_time 90))
-           Binary Left)
+           (Bit_or Binary) Left)
           (Data b
            ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4) (max_time 90))
-           Binary Left)
+           (Bit_or Binary) Left)
           (Data c
            ((t
              ((data
@@ -90,7 +90,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
                 ""))
               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
             (width 4) (max_time 90))
-           Binary Left)))
+           (Bit_or Binary) Left)))
         (ports
          (((type_ Internal) (port_name a) (width 4))
           ((type_ Internal) (port_name b) (width 4))
@@ -111,5 +111,5 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   ;;
 end
 
-module _ = Test (Hardcaml_event_driven_sim.Four_state_logic)
-module _ = Test (Hardcaml_event_driven_sim.Two_state_logic)
+module _ = Test (Hardcaml_event_driven_sim.Four_state_simulator)
+module _ = Test (Hardcaml_event_driven_sim.Two_state_simulator)

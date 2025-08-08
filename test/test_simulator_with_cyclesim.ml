@@ -18,28 +18,23 @@ module Make_test (Input : Interface.S) (Output : Interface.S) : sig
     -> sim_mode:Hardcaml_event_driven_sim.Sim_mode.t
     -> unit
 end = struct
-  open Hardcaml_event_driven_sim
-  module Logic = Two_state_logic
-  module Sim_without_interface = Make (Logic)
-  module Sim_interface = Sim_without_interface.With_interface (Input) (Output)
+  open Hardcaml_event_driven_sim.Two_state_simulator
+  module Sim_interface = With_interface (Input) (Output)
 
   module Clock_domain_splitting_test =
     Test_clock_domain_splitting.Make_test (Input) (Output)
 
   let show_domains circuit = Clock_domain_splitting_test.test circuit
 
-  let test
-    ?(config = Sim_without_interface.Config.trace_all)
-    circuit
-    ~handle_input
-    ~sim_mode
-    =
+  let test ?(config = Config.trace_all) circuit ~handle_input ~sim_mode =
     let%tydi waves, { simulator; _ } =
       Sim_interface.with_waveterm
         ~config:{ config with sim_mode; combine_wires = true }
         circuit
         (fun input_ports _output_ports ->
-           handle_input input_ports ~create_clock:Sim_interface.create_clock
+           handle_input
+             input_ports
+             ~create_clock:(Sim_interface.create_clock ~here:[%here])
            |> Input.to_list)
     in
     for _ = 1 to 20 do

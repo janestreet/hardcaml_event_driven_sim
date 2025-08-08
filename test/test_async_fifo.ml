@@ -1,8 +1,8 @@
 open! Core
 open Core
 
-module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
-  module Sim = Hardcaml_event_driven_sim.Make (Logic)
+module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
+  open Simulator
 
   module M = Hardcaml.Async_fifo.Make (struct
       let width = 4
@@ -12,10 +12,10 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
 
   module I = M.I
   module O = M.O
+  module Sim_interface = With_interface (I) (O)
 
   let%expect_test "full/valid state" =
-    let module Sim_interface = Sim.With_interface (I) (O) in
-    let open Sim.Event_simulator in
+    let open Simulator in
     let open Async in
     let open Logic in
     let fifo = M.create ~scope:(Hardcaml.Scope.create ~flatten_design:true ()) in
@@ -241,5 +241,5 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   ;;
 end
 
-module%test With_four_state_logic = Test (Hardcaml_event_driven_sim.Four_state_logic)
-module%test With_two_state_logic = Test (Hardcaml_event_driven_sim.Two_state_logic)
+module%test With_four_state_logic = Test (Hardcaml_event_driven_sim.Four_state_simulator)
+module%test With_two_state_logic = Test (Hardcaml_event_driven_sim.Two_state_simulator)
