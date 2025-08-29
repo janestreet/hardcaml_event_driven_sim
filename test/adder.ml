@@ -72,38 +72,48 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
       {|
       (waves
        ((waves
-         ((Data a
-           ((t
-             ((data
-               (0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 "" "" "" "" ""
-                ""))
-              (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
-            (width 4) (max_time 90))
-           (Bit_or Binary) Left)
-          (Data b
-           ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4) (max_time 90))
-           (Bit_or Binary) Left)
-          (Data c
-           ((t
-             ((data
-               (1000 1001 1010 1011 1100 1101 1110 1111 0000 0001 "" "" "" "" ""
-                ""))
-              (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
-            (width 4) (max_time 90))
-           (Bit_or Binary) Left)))
+         ((Data (name a)
+           (data
+            ((t
+              ((data
+                (0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 "" "" "" "" ""
+                 ""))
+               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
+             (width 4) (max_time 90)))
+           (wave_format ((current (Bit_or Binary)) (default (Bit_or Binary))))
+           (text_alignment Left)
+           (style ((style ((bold false) (fg White) (bg Black))))))
+          (Data (name b)
+           (data
+            ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4)
+             (max_time 90)))
+           (wave_format ((current (Bit_or Binary)) (default (Bit_or Binary))))
+           (text_alignment Left)
+           (style ((style ((bold false) (fg White) (bg Black))))))
+          (Data (name c)
+           (data
+            ((t
+              ((data
+                (1000 1001 1010 1011 1100 1101 1110 1111 0000 0001 "" "" "" "" ""
+                 ""))
+               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
+             (width 4) (max_time 90)))
+           (wave_format ((current (Bit_or Binary)) (default (Bit_or Binary))))
+           (text_alignment Left)
+           (style ((style ((bold false) (fg White) (bg Black))))))))
         (ports
          (((type_ Internal) (port_name a) (width 4))
           ((type_ Internal) (port_name b) (width 4))
           ((type_ Internal) (port_name c) (width 4))))))
       ┌Signals────────┐┌Waves──────────────────────────────────────────────┐
       │               ││───╥──╥───┬──╥──╥───┬──╥──╥───┬                    │
-      │a              ││ 0 ║ 1║ 2 │3 ║ 4║ 5 │6 ║ 7║ 8 │                    │
+      │a              ││ 0 ║1 ║2  │3 ║4 ║5  │6 ║7 ║8  │                    │
       │               ││───╨──╨───┴──╨──╨───┴──╨──╨───┴                    │
       │               ││───────────────────────────────                    │
       │b              ││ 8                                                 │
       │               ││───────────────────────────────                    │
       │               ││───╥──╥───┬──╥──╥───┬──╥──╥───┬                    │
-      │c              ││ 8 ║ 9║ A │B ║ C║ D │E ║ F║ 0 │                    │
+      │c              ││ 8 ║9 ║A  │B ║C ║D  │E ║F ║0  │                    │
       │               ││───╨──╨───┴──╨──╨───┴──╨──╨───┴                    │
       └───────────────┘└───────────────────────────────────────────────────┘
       deacc79608dafd064470bfe1e9ae2338

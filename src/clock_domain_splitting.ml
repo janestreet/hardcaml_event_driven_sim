@@ -475,23 +475,22 @@ let circuit_of_signal_graph signal_graph ~fresh_id ~(clock_domain : Clock_domain
       incr next_id;
       Signal.( -- ) signal [%string "__%{id#Int}"]
   in
-  let fresh_signal_id width : Signal.Type.signal_id =
-    { s_id = fresh_id (); s_width = width; s_metadata = None }
+  let fresh_signal_info width : Signal.Type.Info.t =
+    { uid = fresh_id (); width; metadata = None }
   in
   (* Rewrite the signal graph, replacing [upto]s with input signals *)
   let (_ : Signal_graph.t), new_signal_by_old_uid =
     let create_input_from_signal signal =
-      Signal.Type.Wire
-        { signal_id = fresh_signal_id (Signal.width signal); driver = None }
+      Signal.Type.Wire { info = fresh_signal_info (Signal.width signal); driver = None }
       |> assign_fresh_name
     in
-    let fresh_signal_id (signal_id : Signal.Type.signal_id) : Signal.Type.signal_id =
-      fresh_signal_id signal_id.s_width
+    let fresh_signal_info (info : Signal.Type.Info.t) : Signal.Type.Info.t =
+      fresh_signal_info info.width
     in
     Signal_graph.rewrite
       signal_graph
       ~f:(fun signal ->
-        Signal.Type.map_signal_id signal ~f:fresh_signal_id |> assign_fresh_name)
+        Signal.Type.map_info signal ~f:fresh_signal_info |> assign_fresh_name)
       ~f_upto:(fun signal -> create_input_from_signal signal)
   in
   (* Rewrite the clock domain's signals to be based off of the new signals *)
@@ -524,7 +523,7 @@ let circuit_of_signal_graph signal_graph ~fresh_id ~(clock_domain : Clock_domain
       in
       let new_output_wire =
         Signal.Type.Wire
-          { signal_id = fresh_signal_id (Signal.width new_output_signal)
+          { info = fresh_signal_info (Signal.width new_output_signal)
           ; driver = Some new_output_signal
           }
         |> assign_fresh_name

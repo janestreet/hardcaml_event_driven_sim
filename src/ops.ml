@@ -34,7 +34,7 @@ module Make (Comb : Logic.S) = struct
   ;;
 
   let compile_reg ~to_sim_signal signal ~source reg =
-    let { Signal.Type.clock = { clock; clock_edge }
+    let { Signal.Type.Reg.Register.clock = { clock; clock_edge }
         ; reset
         ; clear
         ; initialize_to = _
@@ -178,15 +178,15 @@ module Make (Comb : Logic.S) = struct
         comb_process (fun () -> op (Simulator.Signal.read a) (Simulator.Signal.read b))
       in
       (match op with
-       | Signal_add -> op2 Comb.( +: )
-       | Signal_sub -> op2 Comb.( -: )
-       | Signal_mulu -> op2 Comb.( *: )
-       | Signal_muls -> op2 Comb.( *+ )
-       | Signal_and -> op2 Comb.( &: )
-       | Signal_or -> op2 Comb.( |: )
-       | Signal_xor -> op2 Comb.( ^: )
-       | Signal_eq -> op2 Comb.( ==: )
-       | Signal_lt -> op2 Comb.( <: ))
+       | Add -> op2 Comb.( +: )
+       | Sub -> op2 Comb.( -: )
+       | Mulu -> op2 Comb.( *: )
+       | Muls -> op2 Comb.( *+ )
+       | And -> op2 Comb.( &: )
+       | Or -> op2 Comb.( |: )
+       | Xor -> op2 Comb.( ^: )
+       | Eq -> op2 Comb.( ==: )
+       | Lt -> op2 Comb.( <: ))
         arg_a
         arg_b
     | Wire { driver = Some driver; _ } ->
