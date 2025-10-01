@@ -1,6 +1,5 @@
 open Core
-module Logic = Hardcaml_event_driven_sim.Four_state_logic
-module Sim = Hardcaml_event_driven_sim.Make (Logic)
+open Hardcaml_event_driven_sim.Four_state_simulator
 
 module I = struct
   type 'a t =
@@ -38,9 +37,9 @@ let f i =
 ;;
 
 let%expect_test "basic_memory" =
-  let module Sim_interface = Sim.With_interface (I) (O) in
-  let open Sim.Event_simulator in
-  let open Hardcaml_event_driven_sim.Four_state_logic in
+  let module Sim_interface = With_interface (I) (O) in
+  let open Simulator in
+  let open Logic in
   let { Sim_interface.processes; input; output; internal = _; memories = _ } =
     Sim_interface.create f
   in

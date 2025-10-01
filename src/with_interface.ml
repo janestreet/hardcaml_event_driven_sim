@@ -24,11 +24,11 @@ struct
     ; input : Logic.t Port.t Input.t
     ; output : Logic.t Port.t Output.t
     ; internal : Logic.t Port.t list
-    ; memories : Logic.t Hardcaml.Expert.Simulation_memory.t list String.Map.t
+    ; memories : Logic.t Hardcaml.Private.Simulation_memory.t list String.Map.t
     }
 
-  let create_clock ?initial_delay ~time signal =
-    Simulator.create_clock ?initial_delay ~time ~toggle:Logic.( ~: ) signal
+  let create_clock ?initial_delay ~(here : [%call_pos]) ~time signal =
+    Simulator.create_clock ?initial_delay ~here ~time ~toggle:Logic.( ~: ) signal
   ;;
 
   let traced = Hardcaml.Cyclesim.Private.Traced_nodes.create

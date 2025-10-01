@@ -5,7 +5,7 @@ type t =
   { bits : Bits.t
   ; mask : Bits.t
   }
-[@@deriving equal, compare, fields ~getters, sexp_of]
+[@@deriving equal ~localize, compare ~localize, fields ~getters, sexp_of]
 
 let is_pure t =
   let d = Bits.to_constant t.mask |> Constant.Raw.to_bytes in
@@ -21,14 +21,15 @@ let to_bits_exn t =
 ;;
 
 module Gates : Comb.Gates with type t = t = struct
-  type nonrec t = t
+  type nonrec t = t [@@deriving equal ~localize]
 
-  let equal = equal
   let empty = { bits = Bits.empty; mask = Bits.empty }
   let is_empty { bits; _ } = Bits.is_empty bits
   let width { bits; _ } = Bits.width bits
   let of_constant c = of_bits (Bits.of_constant c)
   let to_constant t = Bits.to_constant (to_bits_exn t)
+  let vdd = of_constant (Constant.of_int ~width:1 1)
+  let gnd = of_constant (Constant.of_int ~width:1 0)
 
   let concat_msb l =
     { bits = Bits.concat_msb (List.map l ~f:bits)

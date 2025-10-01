@@ -9,7 +9,7 @@ module Bool4 = struct
     | False
     | X (* don't care *)
     | Z (* high impedence *)
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp_of, equal ~localize]
 
   let to_string = function
     | True -> "1"

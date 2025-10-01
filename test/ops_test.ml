@@ -1,19 +1,19 @@
 open! Core
 open Hardcaml.Signal
-module Sim = Hardcaml_event_driven_sim.Make (Hardcaml_event_driven_sim.Four_state_logic)
+open Hardcaml_event_driven_sim.Four_state_simulator
 
 let%expect_test "simple comb" =
-  let open Sim.Event_simulator in
+  let open Simulator in
   let circuit =
     let a = of_string "01" +: of_string "10" in
     Hardcaml.Circuit.create_exn ~name:"const" [ output "a" a ]
   in
-  let ops = Sim.Ops.circuit_to_processes circuit ~combine_wires:true in
-  let sim = Sim.Event_simulator.create (Sim.Ops.processes ops) in
+  let ops = Ops.circuit_to_processes circuit ~combine_wires:true in
+  let sim = Simulator.create (Ops.processes ops) in
   let outputs = Hardcaml.Circuit.outputs circuit in
   let a = List.nth_exn outputs 0 in
-  Sim.Event_simulator.stabilise sim;
-  print_s ([%sexp_of: Sim.Logic.t] !!(Sim.Ops.find_sim_signal ops a));
+  Simulator.stabilise sim;
+  print_s ([%sexp_of: Logic.t] !!(Ops.find_sim_signal ops a));
   [%expect {| 11 |}]
 ;;
 
@@ -23,21 +23,21 @@ let%expect_test "simple time" =
     let a = of_string "01" +: input in
     Hardcaml.Circuit.create_exn ~name:"timed" [ output "a" a ]
   in
-  let ops = Sim.Ops.circuit_to_processes circuit ~combine_wires:true in
+  let ops = Ops.circuit_to_processes circuit ~combine_wires:true in
   let inputs = Hardcaml.Circuit.inputs circuit in
-  let sig_input = Sim.Ops.find_sim_signal ops (List.nth_exn inputs 0) in
+  let sig_input = Ops.find_sim_signal ops (List.nth_exn inputs 0) in
   let outputs = Hardcaml.Circuit.outputs circuit in
-  let sig_a = Sim.Ops.find_sim_signal ops (List.nth_exn outputs 0) in
-  let open Sim.Event_simulator in
+  let sig_a = Ops.find_sim_signal ops (List.nth_exn outputs 0) in
+  let open Simulator in
   let sim =
     create
-      (Sim.Ops.processes ops
+      (Ops.processes ops
        @ [ Process.create [ !&sig_input ] (fun () ->
-             (sig_input <--- Sim.Logic.( +:. ) !!sig_input 1) ~delay:20)
+             (sig_input <--- Logic.( +:. ) !!sig_input 1) ~delay:20)
          ; Debug.print_signal "a" sig_a
          ])
   in
-  Sim.Event_simulator.run ~time_limit:201 sim;
+  Simulator.run ~time_limit:201 sim;
   [%expect
     {|
     t=0 a=01
@@ -70,9 +70,9 @@ let%expect_test "signals optimized out" =
 
     let f i = { O.c = i.I.a +: of_string "01" }
   end in
-  let open Sim.Logic in
-  let open Sim.Event_simulator in
-  let module Sim_interface = Sim.With_interface (I) (O) in
+  let open Logic in
+  let open Simulator in
+  let module Sim_interface = With_interface (I) (O) in
   let { Sim_interface.processes; input; output; internal = _; memories = _ } =
     Sim_interface.create f
   in

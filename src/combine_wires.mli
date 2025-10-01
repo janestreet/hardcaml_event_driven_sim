@@ -10,4 +10,11 @@ module Copied_signals : sig
     }
 end
 
+(** [combine outputs] creates a new circuit with all wires compressed down to only the
+    necessary wires. It returns the outputs of this new circuit and a map from the old
+    signals to the new signals.
+
+    This function will NOT preserve the names of the signals in the original circuit.
+    Every signal in the returned circuit will have a fresh name unique to the returned
+    circuit. *)
 val combine : Signal.t list -> Copied_signals.t

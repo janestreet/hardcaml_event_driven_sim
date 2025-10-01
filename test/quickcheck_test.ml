@@ -2,8 +2,7 @@
 
 open Core
 open Hardcaml
-module Logic = Hardcaml_event_driven_sim.Four_state_logic
-module Sim = Hardcaml_event_driven_sim.Make (Logic)
+open Hardcaml_event_driven_sim.Four_state_simulator
 
 let cycle_count = 15
 
@@ -35,10 +34,10 @@ let find_by_name name =
 ;;
 
 let event_driven_sim_eval inputs circuit =
-  let open Event_driven_sim.Simulator in
-  let open Event_driven_sim.Simulator.Async in
-  let ops = Sim.Ops.circuit_to_processes circuit ~combine_wires:true in
-  let find_sim_signal = Sim.Ops.find_sim_signal ops in
+  let open Simulator in
+  let open Simulator.Async in
+  let ops = Ops.circuit_to_processes circuit ~combine_wires:true in
+  let find_sim_signal = Ops.find_sim_signal ops in
   let sim_clock_opt =
     find_by_name "clock" (Circuit.inputs circuit) |> Option.map ~f:find_sim_signal
   in
@@ -86,9 +85,7 @@ let event_driven_sim_eval inputs circuit =
           remaining_inputs := rest
         | [] -> ()))
   in
-  let sim =
-    create ([ clock_driver; reset_driver; input_driver ] @ Sim.Ops.processes ops)
-  in
+  let sim = create ([ clock_driver; reset_driver; input_driver ] @ Ops.processes ops) in
   let results = ref [] in
   for i = 1 to cycle_count do
     run sim ~time_limit:((i * 1000) + 10);

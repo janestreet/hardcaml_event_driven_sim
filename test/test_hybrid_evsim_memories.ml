@@ -1,6 +1,6 @@
 open! Core
 open Hardcaml
-module Logic = Hardcaml_event_driven_sim.Two_state_logic
+open Hardcaml_event_driven_sim.Two_state_simulator
 
 module type Test = sig
   val width_ : int
@@ -19,8 +19,7 @@ module Make_test (Test : Test) = struct
     type 'a t = { value : 'a [@bits width_] } [@@deriving hardcaml]
   end
 
-  module Sim_without_interface = Hardcaml_event_driven_sim.Make (Logic)
-  module Sim_interface = Sim_without_interface.With_interface (Input) (Output)
+  module Sim_interface = With_interface (Input) (Output)
 
   let circuit ({ clock } : _ Input.t) =
     let open Signal in
@@ -54,11 +53,7 @@ module Make_test (Test : Test) = struct
   let run_test ~sim_mode =
     let { Sim_interface.ports_and_processes = { memories; _ }; simulator } =
       Sim_interface.with_processes
-        ~config:
-          { Hardcaml_event_driven_sim.Config.trace_all with
-            sim_mode
-          ; combine_wires = true
-          }
+        ~config:{ Config.trace_all with sim_mode; combine_wires = true }
         circuit
         (fun { clock } { value = _ } ->
            [ Sim_interface.create_clock ~time:1 clock.signal ])
@@ -68,22 +63,22 @@ module Make_test (Test : Test) = struct
         Event_driven_sim.Simulator.step simulator
       done;
       let memory = Map.find_exn memories memory_name |> List.hd_exn in
-      let value = Expert.Simulation_memory.get memory 5 in
+      let value = Private.Simulation_memory.get memory 5 in
       print_s [%message (value : Logic.t)]
     done
   ;;
 end
 
 let test_verilator =
-  Hardcaml_event_driven_sim.Sim_mode.Hybrid
+  Sim_mode.Hybrid
     { cyclesim_create =
         (fun ~config ~clock_names circuit ->
           Hardcaml_verilator.create ~config ~clock_names circuit)
     }
 ;;
 
-let sim_modes_to_test : Hardcaml_event_driven_sim.Sim_mode.t list =
-  [ Evsim; Hardcaml_event_driven_sim.Sim_mode.default_hybrid; test_verilator ]
+let sim_modes_to_test : Sim_mode.t list =
+  [ Evsim; Sim_mode.default_hybrid; test_verilator ]
 ;;
 
 let%expect_test "increment memory value small" =

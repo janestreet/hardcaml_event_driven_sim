@@ -46,7 +46,7 @@ end
 module Process : sig
   type t
 
-  val create : Signal_id.t list -> (unit -> unit) -> t
+  val create : here:[%call_pos] -> Signal_id.t list -> (unit -> unit) -> t
 end
 
 type t
@@ -96,6 +96,7 @@ val create_clock
        (** The offset of the first rising edge of the clock relative to the start of the
            simulation. The default value is [time], so that all clocks start on the
            falling edge. *)
+  -> here:[%call_pos]
   -> time:int
   -> toggle:('a -> 'a)
   -> 'a Signal.t
@@ -122,7 +123,7 @@ module Async : sig
   module Ivar = Mini_async.Ivar
 
   (** Create a process that repeatedly run a given function. *)
-  val create_process : (unit -> unit Deferred.t) -> Process.t
+  val create_process : here:[%call_pos] -> (unit -> unit Deferred.t) -> Process.t
 
   (** [delay n] returns deferred that will be filled after [n] time steps. *)
   val delay : int -> unit Deferred.t

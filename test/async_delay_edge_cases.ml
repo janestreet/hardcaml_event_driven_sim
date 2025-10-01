@@ -22,8 +22,8 @@ let create_process_with_initial_delay ~initial_delay f =
 
    Everything is tested both with and without an initial delay as the specific reasons
    behind the timings demonstrated are different in each case. *)
-module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
-  module Sim = Hardcaml_event_driven_sim.Make (Logic)
+module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
+  open Simulator
 
   (* If an input is written to on a [Async.delay] at the same timestep as a clock tick,
      then regs on that clock use the old value of the input unless that input feeds
@@ -56,9 +56,9 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
 
     (* Using [Async.delay], flip [data] on the timesteps of [clock]'s ticks. *)
     let run ~initial_delay =
-      let open Sim.Event_simulator in
-      let open Sim.Logic in
-      let module Sim_interface = Sim.With_interface (I) (O) in
+      let open Simulator in
+      let open Logic in
+      let module Sim_interface = With_interface (I) (O) in
       let waves, { Sim_interface.simulator; _ } =
         Sim_interface.with_waveterm f (fun input _output ->
           let input = I.map input ~f:(fun v -> v.signal) in
@@ -141,8 +141,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
     (* Using [Async.delay], on the timesteps of [clock]s ticks set [direct] to [clock]
          and [delay] to a wire of [clock] (Hardcaml makes [clock_delay] have its own wire) *)
     let run ~initial_delay =
-      let open Sim.Event_simulator in
-      let module Sim_interface = Sim.With_interface (I) (O) in
+      let open Simulator in
+      let module Sim_interface = With_interface (I) (O) in
       let waves, { Sim_interface.simulator; _ } =
         Sim_interface.with_waveterm f (fun input output ->
           let input = I.map input ~f:(fun v -> v.signal) in
@@ -155,10 +155,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
           ])
       in
       run simulator ~time_limit:10;
-      Hardcaml_event_driven_sim.Waveterm.Waveform.expect
-        waves
-        ~wave_width:1
-        ~display_width:50
+      Waveterm.Waveform.expect waves ~wave_width:1 ~display_width:50
     ;;
 
     (* When [initial_delay=0], both [direct] and [delay] are set with [clock]s old value
@@ -229,4 +226,4 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   end
 end
 
-module _ = Test (Hardcaml_event_driven_sim.Two_state_logic)
+module%test Two_state = Test (Hardcaml_event_driven_sim.Two_state_simulator)

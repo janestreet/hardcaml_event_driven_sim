@@ -34,7 +34,7 @@ module Make (Comb : Logic.S) = struct
   ;;
 
   let compile_reg ~to_sim_signal signal ~source reg =
-    let { Signal.Type.clock = { clock; clock_edge }
+    let { Signal.Type.Reg.Register.clock = { clock; clock_edge }
         ; reset
         ; clear
         ; initialize_to = _
@@ -178,15 +178,15 @@ module Make (Comb : Logic.S) = struct
         comb_process (fun () -> op (Simulator.Signal.read a) (Simulator.Signal.read b))
       in
       (match op with
-       | Signal_add -> op2 Comb.( +: )
-       | Signal_sub -> op2 Comb.( -: )
-       | Signal_mulu -> op2 Comb.( *: )
-       | Signal_muls -> op2 Comb.( *+ )
-       | Signal_and -> op2 Comb.( &: )
-       | Signal_or -> op2 Comb.( |: )
-       | Signal_xor -> op2 Comb.( ^: )
-       | Signal_eq -> op2 Comb.( ==: )
-       | Signal_lt -> op2 Comb.( <: ))
+       | Add -> op2 Comb.( +: )
+       | Sub -> op2 Comb.( -: )
+       | Mulu -> op2 Comb.( *: )
+       | Muls -> op2 Comb.( *+ )
+       | And -> op2 Comb.( &: )
+       | Or -> op2 Comb.( |: )
+       | Xor -> op2 Comb.( ^: )
+       | Eq -> op2 Comb.( ==: )
+       | Lt -> op2 Comb.( <: ))
         arg_a
         arg_b
     | Wire { driver = Some driver; _ } ->
@@ -199,8 +199,10 @@ module Make (Comb : Logic.S) = struct
     | Multiport_mem { write_ports; _ } ->
       compile_multiport_mem ~memories ~to_sim_signal (Signal.uid signal) write_ports
     | Mem_read_port _ -> []
-    | Inst { instantiation = { inst_inputs; _ }; _ } ->
-      let inputs = List.map ~f:(Fn.compose to_sim_signal snd) inst_inputs in
+    | Inst { instantiation = { inputs; _ }; _ } ->
+      let inputs =
+        List.map ~f:(fun { input_signal; _ } -> to_sim_signal input_signal) inputs
+      in
       let output_signal = external_insts signal ~inputs in
       comb_process (fun () -> Simulator.Signal.read output_signal)
   ;;
@@ -286,7 +288,7 @@ module Make (Comb : Logic.S) = struct
     in
     let memories =
       Map.map memories ~f:(fun memory_data ->
-        Hardcaml.Expert.Simulation_memory.of_evsim_memory memory_data.array)
+        Hardcaml.Private.Simulation_memory.of_evsim_memory memory_data.array)
     in
     List.map processes ~f:(fun (deps, f) -> Simulator.Process.create deps f), memories
   ;;
@@ -299,7 +301,7 @@ module Make (Comb : Logic.S) = struct
     { processes : Simulator.Process.t list
     ; find_sim_signal : Hardcaml.Signal.t -> Comb.t Simulator.Signal.t
     ; fake_sim_signal : Hardcaml.Signal.t -> Comb.t Simulator.Signal.t
-    ; memories : Comb.t Hardcaml.Expert.Simulation_memory.t Map.M(Signal.Type.Uid).t
+    ; memories : Comb.t Hardcaml.Private.Simulation_memory.t Map.M(Signal.Type.Uid).t
     }
   [@@deriving fields ~getters]
 
@@ -493,7 +495,7 @@ module Make (Comb : Logic.S) = struct
     ~random_initializer
     ~cyclesim_create
     : (signal_port_list, signal_port_list) Cyclesim.t
-      * Comb.t Hardcaml.Expert.Simulation_memory.t Map.M(Signal.Type.Uid).t
+      * Comb.t Hardcaml.Private.Simulation_memory.t Map.M(Signal.Type.Uid).t
     =
     let create_name_to_signal_map signals =
       List.map signals ~f:(fun signal ->
@@ -539,7 +541,7 @@ module Make (Comb : Logic.S) = struct
           let name = Signal.names signal |> List.hd_exn in
           let memory = Cyclesim.lookup_mem_by_name cyclesim name |> Option.value_exn in
           ( Signal.uid signal
-          , Hardcaml.Expert.Simulation_memory.of_cyclesim_memory
+          , Hardcaml.Private.Simulation_memory.of_cyclesim_memory
               memory
               ~of_bits:Comb.of_bits )
           :: memories)
@@ -819,8 +821,8 @@ module Make (Comb : Logic.S) = struct
                  ~combine:
                    (fun
                      ~key:uid
-                     (_ : _ Hardcaml.Expert.Simulation_memory.t)
-                     (_ : _ Hardcaml.Expert.Simulation_memory.t)
+                     (_ : _ Hardcaml.Private.Simulation_memory.t)
+                     (_ : _ Hardcaml.Private.Simulation_memory.t)
                    ->
                    raise_s
                      [%message
