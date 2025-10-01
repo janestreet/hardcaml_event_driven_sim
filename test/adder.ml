@@ -80,14 +80,14 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
                  ""))
                (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
              (width 4) (max_time 90)))
-           (wave_format ((current (Bit_or Binary)) (default (Bit_or Binary))))
+           (wave_format ((current (Bit_or Hex)) (default (Bit_or Hex))))
            (text_alignment Left)
            (style ((style ((bold false) (fg White) (bg Black))))))
           (Data (name b)
            (data
             ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4)
              (max_time 90)))
-           (wave_format ((current (Bit_or Binary)) (default (Bit_or Binary))))
+           (wave_format ((current (Bit_or Hex)) (default (Bit_or Hex))))
            (text_alignment Left)
            (style ((style ((bold false) (fg White) (bg Black))))))
           (Data (name c)
@@ -98,7 +98,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
                  ""))
                (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
              (width 4) (max_time 90)))
-           (wave_format ((current (Bit_or Binary)) (default (Bit_or Binary))))
+           (wave_format ((current (Bit_or Hex)) (default (Bit_or Hex))))
            (text_alignment Left)
            (style ((style ((bold false) (fg White) (bg Black))))))))
         (ports
@@ -121,5 +121,5 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
   ;;
 end
 
-module _ = Test (Hardcaml_event_driven_sim.Four_state_simulator)
-module _ = Test (Hardcaml_event_driven_sim.Two_state_simulator)
+module%test Four_state = Test (Hardcaml_event_driven_sim.Four_state_simulator)
+module%test Two_state = Test (Hardcaml_event_driven_sim.Two_state_simulator)

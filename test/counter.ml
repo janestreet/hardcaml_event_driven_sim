@@ -29,7 +29,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
            [test_vcd.ml] in the Hardcaml tests, this check is primarily to verify that the
            event-sim VCD module is calling into the correct version of the Hardcaml VCD
            functions. *)
-        let d = Uop.(d +: i.I.amount) -- "deep$module$hierarchy$NEXT" in
+        let d = Unsigned.(d +: i.I.amount) -- "deep$module$hierarchy$NEXT" in
         mux2 (msb d) (zero 8) (lsbs d))
     in
     { O.total }
@@ -83,7 +83,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
   ;;
 end
 
-module _ = Test (Hardcaml_event_driven_sim.Two_state_simulator)
+module%test Two_state = Test (Hardcaml_event_driven_sim.Two_state_simulator)
 module Four_state = Test (Hardcaml_event_driven_sim.Four_state_simulator)
 
 let%expect_test "adder - vcd" =

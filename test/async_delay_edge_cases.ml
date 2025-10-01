@@ -226,4 +226,4 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
   end
 end
 
-module _ = Test (Hardcaml_event_driven_sim.Two_state_simulator)
+module%test Two_state = Test (Hardcaml_event_driven_sim.Two_state_simulator)
