@@ -1,6 +1,6 @@
 open! Core
 open Hardcaml
-module Clock_domain_splitting = Hardcaml_event_driven_sim.Clock_domain_splitting
+module Clock_domain_splitting = Hardcaml_event_driven_sim.Private.Clock_domain_splitting
 
 module Make_test (Input : Interface.S) (Output : Interface.S) : sig
   val test
@@ -123,7 +123,7 @@ end = struct
     let circuit = With_interface.create_exn circuit ~name:"test" in
     let get_old_signal_by_uid = circuit_signals_by_uid circuit |> Staged.unstage in
     let clock_domains =
-      Hardcaml_event_driven_sim.Clock_domain_splitting.group_by_clock_domain
+      Hardcaml_event_driven_sim.Private.Clock_domain_splitting.group_by_clock_domain
         (Circuit.signal_graph circuit)
         ~extra_outputs:[]
     in

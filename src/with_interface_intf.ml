@@ -49,7 +49,7 @@ struct
       ; input : Logic.t Port.t Input.t
       ; output : Logic.t Port.t Output.t
       ; internal : Logic.t Port.t list
-      ; memories : Logic.t Hardcaml.Expert.Simulation_memory.t list String.Map.t
+      ; memories : Logic.t Hardcaml.Private.Simulation_memory.t list String.Map.t
       }
 
     (** Returns a process that drives a given signal as a clock with a given time between
@@ -59,6 +59,7 @@ struct
            (** The offset of the first rising edge of the clock relative to the start of
                the simulation. The default value is [time], so that all clocks start on
                the falling edge. *)
+      -> here:[%call_pos]
       -> time:int
       -> Logic.t Event_driven_sim.Simulator.Signal.t
       -> Event_driven_sim.Simulator.Process.t

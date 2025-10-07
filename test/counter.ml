@@ -2,8 +2,8 @@
 open Core
 open Hardcaml.Signal
 
-module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
-  module Sim = Hardcaml_event_driven_sim.Make (Logic)
+module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
+  open Simulator
 
   module I = struct
     type 'a t =
@@ -29,7 +29,7 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
            [test_vcd.ml] in the Hardcaml tests, this check is primarily to verify that the
            event-sim VCD module is calling into the correct version of the Hardcaml VCD
            functions. *)
-        let d = Uop.(d +: i.I.amount) -- "deep$module$hierarchy$NEXT" in
+        let d = Unsigned.(d +: i.I.amount) -- "deep$module$hierarchy$NEXT" in
         mux2 (msb d) (zero 8) (lsbs d))
     in
     { O.total }
@@ -37,8 +37,8 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
 
   let%expect_test "adder" =
     let open Logic in
-    let open Sim.Event_simulator in
-    let module Sim_interface = Sim.With_interface (I) (O) in
+    let open Simulator in
+    let module Sim_interface = With_interface (I) (O) in
     let { Sim_interface.processes; input; output; internal = _; memories = _ } =
       Sim_interface.create f
     in
@@ -83,17 +83,18 @@ module Test (Logic : Hardcaml_event_driven_sim.Logic.S) = struct
   ;;
 end
 
-module _ = Test (Hardcaml_event_driven_sim.Two_state_logic)
-module Four_state = Test (Hardcaml_event_driven_sim.Four_state_logic)
+module%test Two_state = Test (Hardcaml_event_driven_sim.Two_state_simulator)
+module Four_state = Test (Hardcaml_event_driven_sim.Four_state_simulator)
 
 let%expect_test "adder - vcd" =
-  let open Hardcaml_event_driven_sim.Four_state_logic in
   let open Four_state in
-  let open Four_state.Sim.Event_simulator in
-  let module Sim_interface = Sim.With_interface (I) (O) in
+  let open Hardcaml_event_driven_sim.Four_state_simulator in
+  let open Logic in
+  let open Simulator in
+  let module Sim_interface = With_interface (I) (O) in
   let { Sim_interface.simulator = sim; _ } =
     Sim_interface.with_vcd
-      ~config:Sim.Config.trace_all
+      ~config:Config.trace_all
       ~vcd:Out_channel.stdout
       f
       (fun input _output ->
