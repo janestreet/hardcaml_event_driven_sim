@@ -42,7 +42,6 @@ let assign_fresh_name () =
    the old input to the 2 new input wires (if we just chose one new input to map to, the
    other input wouldn't get updated.)
 
-
    Thirdly, if 2 wires are driven by the same base signal but both wires are used as
    inputs to different signals, we will end up with more wires than we need to. Consider
    the following set of signals, where S represents some other signal node, and W
@@ -99,7 +98,6 @@ let assign_fresh_name () =
                  |    |
                  ------
    v}
-
 
    So we need a slightly more clever algorithm that first finds the "base wire" of all
    chains of wires and then rewrites every signal which has a wire as an input to use the

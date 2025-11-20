@@ -99,10 +99,10 @@ type simulation_callbacks =
   ; mutable at_end_of_time_step : (unit -> unit) list
   }
 
-(* Although changes to [delta_updates] never interleave read / write, storing
-   with a [Queue.t] is probably faster than storing it as a [list] since
-   [Queue.t] is implemented using an array under the hood and saves
-   unnecessary allocations. This is an untested claim, though.
+(* Although changes to [delta_updates] never interleave read / write, storing with a
+   [Queue.t] is probably faster than storing it as a [list] since [Queue.t] is implemented
+   using an array under the hood and saves unnecessary allocations. This is an untested
+   claim, though.
 *)
 type t =
   { mutable delta_updates : Scheduled_event.t Queue.t
@@ -218,8 +218,8 @@ let rec progress_time_to t new_time =
 ;;
 
 let progress_time t =
-  (* Move updates for a next time step from [updates] heap to [delta_update] queue
-     and bump current_step. *)
+  (* Move updates for a next time step from [updates] heap to [delta_update] queue and
+     bump current_step. *)
   assert (Queue.length t.delta_updates = 0);
   match Pairing_heap.top t.updates with
   | None -> ()
@@ -307,7 +307,7 @@ end = struct
   ;;
 
   let wait_forever () =
-    (* Create a deferred that is never filled.  This will never return. *)
+    (* Create a deferred that is never filled. This will never return. *)
     let v = Ivar.create () in
     preserve_process_id (Ivar.read v)
   ;;

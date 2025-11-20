@@ -100,7 +100,7 @@ module Deferred_basic = struct
         then t.cell <- Ptr to_;
         original_t
     in
-    if not (phys_equal bind_result bind_rhs) (* Avoid self loops at top of chain.*)
+    if not (phys_equal bind_result bind_rhs) (* Avoid self loops at top of chain. *)
     then (
       let bind_result = squash bind_result in
       let bind_rhs_cell = redirect_ptrs bind_rhs ~to_:bind_result in
@@ -108,7 +108,7 @@ module Deferred_basic = struct
       | Ptr _, _ | _, Ptr _ -> assert false (* squashed redirect_ptrs assure this *)
       | Filled _, _ ->
         (* [connect] is only used in bind, whose ivar is only ever exported as a read-only
-           deferred.  Thus, [bind_result] must be empty. *)
+           deferred. Thus, [bind_result] must be empty. *)
         assert false
       | _, Filled v -> Ivar.fill bind_result v
       | Waiting callbacks1, Waiting callbacks2 ->

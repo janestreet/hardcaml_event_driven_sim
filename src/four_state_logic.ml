@@ -175,7 +175,7 @@ let of_string_9_state ?(strict = false) s =
   |> of_string
 ;;
 
-(*
+(*=
    . | 0 1 X Z
    --+--------
    0 | 0 X X 0
