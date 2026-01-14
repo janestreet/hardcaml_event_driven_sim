@@ -18,8 +18,8 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
     type 'a t = { total : 'a [@bits 8] } [@@deriving hardcaml ~rtlprefix:"o$"]
   end
 
-  (* Increment [total] by [amount] whenever [incr] is high.  Whenever [total] overflows, set
-     it to 0.  All values are unsigned. *)
+  (* Increment [total] by [amount] whenever [incr] is high. Whenever [total] overflows,
+     set it to 0. All values are unsigned. *)
   let f i =
     let reg_spec = Reg_spec.create () ~clock:i.I.clock in
     let total =

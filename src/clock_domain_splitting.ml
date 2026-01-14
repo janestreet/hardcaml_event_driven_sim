@@ -67,9 +67,9 @@ module Clock_domain_with_any = struct
     | Floating of Why_floating.t
   [@@deriving equal ~localize]
 
-  (* values of [t] form a lattice with [Any] as the bottom element, [Floating]
-     as the top element, and all [Clocked] values in between. [merge] is the join of 2
-     elements in this lattice *)
+  (* values of [t] form a lattice with [Any] as the bottom element, [Floating] as the top
+     element, and all [Clocked] values in between. [merge] is the join of 2 elements in
+     this lattice *)
   let merge t1 t2 =
     match t1, t2 with
     | Any, t | t, Any -> t
@@ -97,11 +97,10 @@ end
    deps' to contain loops for valid circuits[0]. This means we need to run a worklist
    algorithm to determine the clock domain of all the signals.
 
-   [0] Example:
-   [M] is a multiport memory, [R1] and [R2] are read ports of [M], and [A] is the read
-   address of [R1] and the output of [R1] is the read address of [R2]. This is a valid
-   circuit, but if we add the read addresses of [R1] and [R2] as dependencies of [M], then
-   we will get a cycle: [M] -> [R1] -> [M].
+   [0] Example: [M] is a multiport memory, [R1] and [R2] are read ports of [M], and [A] is
+   the read address of [R1] and the output of [R1] is the read address of [R2]. This is a
+   valid circuit, but if we add the read addresses of [R1] and [R2] as dependencies of
+   [M], then we will get a cycle: [M] -> [R1] -> [M].
 
    {v
             [A]
@@ -267,7 +266,8 @@ let get_clock_domain_of_signal graph =
        clock domain of one of its dependencies changes.
      - Therefore, a signal can only be added to the worklist algorithm a max of 1+2*#deps
        times.
-     - Therefore, the algorithm terminates and processes each signal at most 1+2*#deps times.
+     - Therefore, the algorithm terminates and processes each signal at most 1+2*#deps
+       times.
 
      Note: I think in practice, the algorithm will only add each signal at most 3 times,
      because it processes all the dependencies of a signal before processing the signal
@@ -423,8 +423,8 @@ let clock_domain_signal_graphs_of_clock_domain_by_signal clock_domain_by_signal 
                    raise_if_clock_in_any ~if_dep_is_signal:write_clock);
                  clock_domain_signal_graphs
                | _ ->
-                 (* If the dependency has no clock domain, then we will treat that dependency
-                     as part of our clock domain by not adding it to our upto's *)
+                 (* If the dependency has no clock domain, then we will treat that
+                    dependency as part of our clock domain by not adding it to our upto's *)
                  clock_domain_signal_graphs)
             | Some dep_clock_domain ->
               (match clock_domain with

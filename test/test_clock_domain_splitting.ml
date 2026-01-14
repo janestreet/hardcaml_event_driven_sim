@@ -67,12 +67,12 @@ end = struct
     let circuit_outputs = Circuit.outputs original_circuit |> make_signal_set in
     (* Check some invariants about the boundaries of clock domains:
 
-       - All clock domain inputs are either circuit inputs or outputs of
-         another clock domain
-       - All clock domain outputs are either circuit outputs or inputs to
-         another clock domain
-       - All original circuit inputs and outputs are accounted for across
-         all clock domains
+       - All clock domain inputs are either circuit inputs or outputs of another clock
+         domain
+       - All clock domain outputs are either circuit outputs or inputs to another clock
+         domain
+       - All original circuit inputs and outputs are accounted for across all clock
+         domains
     *)
     Hash_set.iter clock_domain_inputs ~f:(fun input_uid ->
       let is_clock_domain_output = Hash_set.mem clock_domain_outputs input_uid in

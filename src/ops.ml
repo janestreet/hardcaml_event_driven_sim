@@ -212,7 +212,7 @@ module Make (Comb : Logic.S) = struct
     let initial_value =
       match signal with
       | Reg { register = { initialize_to = Some initialize_to; _ }; _ } ->
-        Comb.of_constant (Signal.to_constant initialize_to)
+        Comb.of_bits initialize_to
       | _ -> Comb.zero width
     in
     Comb.create_signal ~initial_value width
@@ -521,6 +521,7 @@ module Make (Comb : Logic.S) = struct
                  slower because it adds a wire between every register and its output). *)
           ; store_circuit = false
           ; random_initializer
+          ; clock_mode = All_one_domain
           }
         ~clock_names
         circuit

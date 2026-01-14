@@ -46,7 +46,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
     end
 
     (* Set both [direct] and [delay] to [data] on [clock], but have a wire in the middle
-         for [delay]. *)
+       for [delay]. *)
     let f (i : _ I.t) =
       let spec = Reg_spec.create ~clock:i.clock () in
       let wire = wire 1 in
@@ -77,11 +77,11 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
 
     (* For both of these tests, the order of operations when the clocks ticks is:
 
-         1. Clock gets set high (this schedules the registers to update their values)
-         2. Data gets set (this schedules the wire to update its value)
-         3. The 2 registers update their values. Direct reads data (set in step 2), Delay
-            reads the wire (old value of data)
-         4. wire updates its value; it reads the value of Data *)
+       1. Clock gets set high (this schedules the registers to update their values)
+       2. Data gets set (this schedules the wire to update its value)
+       3. The 2 registers update their values. Direct reads data (set in step 2), Delay
+          reads the wire (old value of data)
+       4. wire updates its value; it reads the value of Data *)
 
     let%expect_test "without initial delay" =
       run ~initial_delay:0;
@@ -138,8 +138,8 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
 
     let f (i : _ I.t) = { O.clock_delay = i.clock }
 
-    (* Using [Async.delay], on the timesteps of [clock]s ticks set [direct] to [clock]
-         and [delay] to a wire of [clock] (Hardcaml makes [clock_delay] have its own wire) *)
+    (* Using [Async.delay], on the timesteps of [clock]s ticks set [direct] to [clock] and
+       [delay] to a wire of [clock] (Hardcaml makes [clock_delay] have its own wire) *)
     let run ~initial_delay =
       let open Simulator in
       let module Sim_interface = With_interface (I) (O) in
@@ -159,17 +159,17 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
     ;;
 
     (* When [initial_delay=0], both [direct] and [delay] are set with [clock]s old value
-      of gnd *)
+       of gnd *)
     let%expect_test "without initial delay" =
       (* The order of operations here whenever the clock goes high is:
 
-           1. The clock is scheduled to go from 0 -> 1
-           2. We schedule setting Direct and Delay using the current value of Clock (0) and
-              Clock_delay (0)
-           3. The clock gets set to 1
-           4. Direct and Delay get set to 0
-           5. Clock_delay gets scheduled to be set to the current value of Clock (1)
-           6. Clock_delay gets set to 1
+         1. The clock is scheduled to go from 0 -> 1
+         2. We schedule setting Direct and Delay using the current value of Clock (0) and
+            Clock_delay (0)
+         3. The clock gets set to 1
+         4. Direct and Delay get set to 0
+         5. Clock_delay gets scheduled to be set to the current value of Clock (1)
+         6. Clock_delay gets set to 1
       *)
       run ~initial_delay:0;
       [%expect
@@ -191,21 +191,20 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
     let%expect_test "with initial delay" =
       (* The order of operations from the start is:
 
-           1. Clock is scheduled to go from 0 -> 1 at [T=1]
-           2. Process [P] is scheduled to run at [T=1]
-           T = 1
-           3. Clock value is set to 1
-           4. Clock_delay is scheduled to go from 0 -> 1
-           5. Process [P] runs, schedules Direct <- Clock (1), Delay <- Clock_delay (0),
-              schedules [P] to run at [T=3]
-           6. Direct is set to 1, Delay is set to 0
-           7. Clock is scheduled to go from 1 -> 0 at [T=2]
-           8. Clock_delay is set to 1
-           9. Clock is set to 0
-           10. Clock is scheduled to go from 0 -> 1 at [T=3]
-               This is scheduled behind process [P]'s run at [T=3]
+         1. Clock is scheduled to go from 0 -> 1 at [T=1]
+         2. Process [P] is scheduled to run at [T=1] T = 1
+         3. Clock value is set to 1
+         4. Clock_delay is scheduled to go from 0 -> 1
+         5. Process [P] runs, schedules Direct <- Clock (1), Delay <- Clock_delay (0),
+            schedules [P] to run at [T=3]
+         6. Direct is set to 1, Delay is set to 0
+         7. Clock is scheduled to go from 1 -> 0 at [T=2]
+         8. Clock_delay is set to 1
+         9. Clock is set to 0
+         10. Clock is scheduled to go from 0 -> 1 at [T=3] This is scheduled behind
+             process [P]'s run at [T=3]
 
-           Step 10. is why the initial behavior is different from subsequent behavior.
+         Step 10. is why the initial behavior is different from subsequent behavior.
       *)
       run ~initial_delay:1;
       [%expect
