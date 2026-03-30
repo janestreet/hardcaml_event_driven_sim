@@ -27,10 +27,10 @@ module Make (Comb : Logic.S) = struct
     | Falling -> (not (Comb.to_bool bits)) && Comb.to_bool last_bits
   ;;
 
-  let edge_to_bool edge =
-    match (edge : Hardcaml.Edge.t) with
-    | Falling -> false
-    | Rising -> true
+  let level_to_bool level =
+    match (level : Hardcaml.Level.t) with
+    | Low -> false
+    | High -> true
   ;;
 
   let compile_reg ~to_sim_signal signal ~source reg =
@@ -47,12 +47,12 @@ module Make (Comb : Logic.S) = struct
     let sim_target = to_sim_signal signal in
     let sim_source = to_sim_signal source in
     let sim_clock = to_sim_signal clock in
-    let sim_reset, reset_edge, sim_reset_to =
+    let sim_reset, reset_level, sim_reset_to =
       Option.value_map
         reset
-        ~default:(None, Hardcaml.Edge.Rising, None)
-        ~f:(fun { reset; reset_edge; reset_to; _ } ->
-          Some (to_sim_signal reset), reset_edge, Some (to_sim_signal reset_to))
+        ~default:(None, Hardcaml.Level.High, None)
+        ~f:(fun { reset; reset_level; reset_to; _ } ->
+          Some (to_sim_signal reset), reset_level, Some (to_sim_signal reset_to))
     in
     let sim_clear, sim_clear_to =
       Option.value_map clear ~default:(None, None) ~f:(fun { clear; clear_to } ->
@@ -69,7 +69,7 @@ module Make (Comb : Logic.S) = struct
       , fun () ->
           if match sim_reset with
              | Some sim_reset_v ->
-               Bool.( = ) (to_bool sim_reset_v) (edge_to_bool reset_edge)
+               Bool.( = ) (to_bool sim_reset_v) (level_to_bool reset_level)
              | None -> false
           then sim_target <-- !!(value_or_zero sim_reset_to source_width)
           else if is_edge sim_clock clock_edge
@@ -584,8 +584,8 @@ module Make (Comb : Logic.S) = struct
     ~output_depth
     =
     let sim_clock = find_sim_signal clock in
-    let sim_reset_and_edge =
-      Option.map reset ~f:(fun { signal; edge } -> find_sim_signal signal, edge)
+    let sim_reset_and_level =
+      Option.map reset ~f:(fun { signal; level } -> find_sim_signal signal, level)
     in
     let signals_with_bits_to_simulator_signals signal_to_bits_map =
       signal_to_bits_map
@@ -647,7 +647,7 @@ module Make (Comb : Logic.S) = struct
     let deps =
       List.filter_opt
         [ Some !&sim_clock
-        ; Option.map sim_reset_and_edge ~f:(fun (reset_signal, _edge) -> !&reset_signal)
+        ; Option.map sim_reset_and_level ~f:(fun (reset_signal, _level) -> !&reset_signal)
         ]
     in
     let is_initial_run = ref true in
@@ -657,9 +657,9 @@ module Make (Comb : Logic.S) = struct
         recompute_comb ();
         update_outputs_signal <-- Comb.( ~: ) !!update_outputs_signal;
         is_initial_run := false)
-      else if match sim_reset_and_edge with
-              | Some (reset_signal, edge) ->
-                Bool.( = ) (to_bool reset_signal) (edge_to_bool edge)
+      else if match sim_reset_and_level with
+              | Some (reset_signal, level) ->
+                Bool.( = ) (to_bool reset_signal) (level_to_bool level)
               | None -> false
       then (
         Cyclesim.reset cyclesim;
