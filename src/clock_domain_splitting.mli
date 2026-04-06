@@ -4,7 +4,7 @@ open Hardcaml
 module Reset_spec : sig
   type t =
     { signal : Signal.t
-    ; edge : Edge.t
+    ; level : Level.t
     }
 end
 

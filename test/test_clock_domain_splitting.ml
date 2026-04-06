@@ -857,8 +857,7 @@ module%test _ = struct
     Test.test (fifo ()) ~show:`Named ~show_kind:false;
     [%expect
       {|
-      (Clocked
-       ((clock (__5)) (edge Rising) (reset ((signal (__6)) (edge Rising)))))
+      (Clocked ((clock (__5)) (edge Rising) (reset ((signal (__6)) (level High)))))
       almost_empty:
       almost_empty:    (output)
       data_out:
@@ -871,8 +870,7 @@ module%test _ = struct
       waddr_rd:
       waddr_rd_ff_0:
 
-      (Clocked
-       ((clock (__5)) (edge Rising) (reset ((signal (__6)) (edge Rising)))))
+      (Clocked ((clock (__5)) (edge Rising) (reset ((signal (__6)) (level High)))))
       full:
       full:            (output)
       raddr_wd:

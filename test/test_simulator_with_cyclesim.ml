@@ -263,8 +263,7 @@ module%test _ = struct
       r-regular:      Reg[id:8 bits:2 names:__7 deps:2,4]
       r-signal:       Reg[id:5 bits:2 names:__4 deps:1,4]
 
-      (Clocked
-       ((clock (__2)) (edge Rising) (reset ((signal (__3)) (edge Rising)))))
+      (Clocked ((clock (__2)) (edge Rising) (reset ((signal (__3)) (level High)))))
       (12):           Wire[id:18 bits:1 names:__3 deps:] -> () (input)
       (5):            Wire[id:17 bits:1 names:__2 deps:] -> () (input)
       out2:           Wire[id:16 bits:2 names:__1 deps:20] -> 20
@@ -322,8 +321,7 @@ module%test _ = struct
     Test.show_domains circuit;
     [%expect
       {|
-      (Clocked
-       ((clock (__2)) (edge Rising) (reset ((signal (__3)) (edge Rising)))))
+      (Clocked ((clock (__2)) (edge Rising) (reset ((signal (__3)) (level High)))))
       (2):            Wire[id:3 bits:1 names:__2 deps:] -> () (input)
       counter:        Reg[id:6 bits:2 names:__5 deps:1,3,4,5]
       gnd:            Wire[id:4 bits:1 names:__3 deps:] -> () (input)

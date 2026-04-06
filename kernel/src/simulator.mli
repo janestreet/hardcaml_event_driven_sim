@@ -62,6 +62,9 @@ val step : t -> unit
 (** Advances time a single delta step. *)
 val delta_step : t -> unit
 
+(** Returns true if there are any delta updates scheduled. *)
+val has_delta_updates : t -> bool
+
 (** Advances time until there are no updates scheduled. *)
 val stabilise : t -> unit
 

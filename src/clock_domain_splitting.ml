@@ -22,7 +22,7 @@ end
 module Reset_spec = struct
   type t =
     { signal : Signal.t
-    ; edge : Edge.t
+    ; level : Level.t
     }
   [@@deriving compare ~localize, equal ~localize, sexp_of]
 end
@@ -157,8 +157,8 @@ let clock_domain (signal : Signal.t) : Clock_domain_with_any.t =
   match signal with
   | Reg { register = { clock = { clock; clock_edge }; reset; _ }; _ } ->
     let reset =
-      Option.map reset ~f:(fun { reset; reset_edge; reset_to = _ } ->
-        { Reset_spec.signal = reset; edge = reset_edge })
+      Option.map reset ~f:(fun { reset; reset_level; reset_to = _ } ->
+        { Reset_spec.signal = reset; level = reset_level })
     in
     Clocked { clock; edge = clock_edge; reset }
   | Multiport_mem { write_ports; _ } ->
@@ -500,9 +500,9 @@ let circuit_of_signal_graph signal_graph ~fresh_id ~(clock_domain : Clock_domain
     | Clocked { clock; edge; reset } ->
       let clock = Map.find_exn new_signal_by_old_uid (Signal.uid clock) in
       let reset =
-        Option.map reset ~f:(fun { signal; edge } : Reset_spec.t ->
+        Option.map reset ~f:(fun { signal; level } : Reset_spec.t ->
           let signal = Map.find_exn new_signal_by_old_uid (Signal.uid signal) in
-          { signal; edge })
+          { signal; level })
       in
       Clocked { clock; edge; reset }
   in

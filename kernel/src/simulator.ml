@@ -217,6 +217,8 @@ let rec progress_time_to t new_time =
     progress_time_to t new_time
 ;;
 
+let has_delta_updates t = not (Queue.is_empty t.delta_updates)
+
 let progress_time t =
   (* Move updates for a next time step from [updates] heap to [delta_update] queue and
      bump current_step. *)
