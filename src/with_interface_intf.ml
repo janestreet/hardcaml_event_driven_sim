@@ -43,6 +43,7 @@ struct
     module Output : Hardcaml.Interface.S with type 'a t = 'a Output.t
     module Logic : Logic_S with type t = Logic.t
     module Ops : Ops.S with type comb := Logic.t
+    module Waveterm : Waveterm.M(Logic).S
 
     type t =
       { processes : Process.t list
@@ -95,7 +96,7 @@ struct
       :  ?config:Config.t
       -> Hardcaml.Interface.Create_fn(Input)(Output).t
       -> testbench_processes
-      -> Waveterm.Waveform.t * testbench
+      -> Hardcaml.Wave_data.t * testbench
 
     (** Like [with_vcd] except the vcd is generated only if a file name is provided and
         the environment variable [EXPECT_TEST_WAVEFORM] exists. *)

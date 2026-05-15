@@ -167,8 +167,9 @@ let clock_domain (signal : Signal.t) : Clock_domain_with_any.t =
     |> List.map ~f:(fun { write_clock; _ } ->
       Clock_domain_with_any.Clocked { clock = write_clock; edge = Rising; reset = None })
     |> List.reduce ~f:Clock_domain_with_any.merge
-    |> (* A multiport memory must have at least one write port *)
-    Option.value_exn
+    |> (* A multiport memory with no write ports (i.e. a ROM) inherits the read
+          addresses's clock domain. *)
+    Option.value ~default:Any
   | Wire { driver = None; _ } ->
     (* All inputs are floating *)
     Floating { input = true; merged_clock_domains = Clock_spec.Set.empty }
@@ -544,11 +545,7 @@ let circuit_of_signal_graph signal_graph ~fresh_id ~(clock_domain : Clock_domain
     Circuit.create_exn
       ~config:
         { Circuit.Config.default with
-          normalize_uids =
-            false
-            (* we want the new signal uids in [old_new_pairs] to refer to the signals in
-               the circuit. Also, we just rewrote all of the uids. *)
-        ; add_phantom_inputs = false (* doesn't do anything, so we set it to false *)
+          add_phantom_inputs = false (* doesn't do anything, so we set it to false *)
         }
       ~name:"x" (* just give it an arbitrary (valid) name *)
       outputs

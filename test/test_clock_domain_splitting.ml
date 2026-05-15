@@ -120,7 +120,16 @@ end = struct
   ;;
 
   let test ?(show = `Named_and_interfaces) ?(show_kind = true) circuit =
-    let circuit = With_interface.create_exn circuit ~name:"test" in
+    let circuit =
+      With_interface.create_exn
+        circuit
+        ~name:"test"
+        ~config:
+          { Circuit.Config.default with
+            (* Ensure that printed signal UIDs are stable *)
+            normalize_uids = true
+          }
+    in
     let get_old_signal_by_uid = circuit_signals_by_uid circuit |> Staged.unstage in
     let clock_domains =
       Hardcaml_event_driven_sim.Private.Clock_domain_splitting.group_by_clock_domain
@@ -262,7 +271,16 @@ module%test _ = struct
 
   let%expect_test "show clock domain stats" =
     let module With_interface = Circuit.With_interface (I) (O) in
-    let circuit = With_interface.create_exn circuit ~name:"test" in
+    let circuit =
+      With_interface.create_exn
+        circuit
+        ~config:
+          { Circuit.Config.default with
+            (* Ensure that printed signal UIDs are stable *)
+            normalize_uids = true
+          }
+        ~name:"test"
+    in
     let stats =
       Clock_domain_splitting.For_testing.Stats.create (Circuit.signal_graph circuit)
     in
@@ -857,7 +875,7 @@ module%test _ = struct
     Test.test (fifo ()) ~show:`Named ~show_kind:false;
     [%expect
       {|
-      (Clocked ((clock (__5)) (edge Rising) (reset ((signal (__6)) (level High)))))
+      (Clocked ((clock (__6)) (edge Rising) (reset ((signal (__7)) (level High)))))
       almost_empty:
       almost_empty:    (output)
       data_out:
@@ -870,7 +888,9 @@ module%test _ = struct
       waddr_rd:
       waddr_rd_ff_0:
 
-      (Clocked ((clock (__5)) (edge Rising) (reset ((signal (__6)) (level High)))))
+      (Clocked ((clock (__6)) (edge Rising) (reset ((signal (__7)) (level High)))))
+      almost_full:
+      almost_full:     (output)
       full:
       full:            (output)
       raddr_wd:
@@ -883,6 +903,10 @@ module%test _ = struct
       clock_write:     (input)
       data_in:         (input)
       gnd:
+      prog_empty:
+      prog_empty:      (output)
+      prog_full:
+      prog_full:       (output)
       raddr_rd:        (input)
       ram:
       read_enable:     (input)

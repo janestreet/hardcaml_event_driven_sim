@@ -26,7 +26,7 @@ module type S = sig
   module Sim_mode = Sim_mode
   module Simulator = Simulator
   module Vcd : module type of Vcd.Make (Logic)
-  module Waveterm = Waveterm
+  module Waveterm : Waveterm.M(Logic).S
   module With_interface : module type of With_interface (Logic)
 end
 
@@ -39,7 +39,7 @@ module Make (Logic : Logic.S) = struct
   module Sim_mode = Sim_mode
   module Simulator = Simulator
   module Vcd = Vcd.Make (Logic)
-  module Waveterm = Waveterm
+  module Waveterm = Waveterm.Make (Logic)
   module With_interface = With_interface (Logic)
 end
 

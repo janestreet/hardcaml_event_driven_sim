@@ -69,10 +69,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
           ])
       in
       run simulator ~time_limit:10;
-      Hardcaml_event_driven_sim.Waveterm.Waveform.expect
-        waves
-        ~wave_width:1
-        ~display_width:50
+      Hardcaml_waveterm.Waveform.expect waves ~wave_width:1 ~display_width:50
     ;;
 
     (* For both of these tests, the order of operations when the clocks ticks is:
@@ -155,7 +152,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
           ])
       in
       run simulator ~time_limit:10;
-      Waveterm.Waveform.expect waves ~wave_width:1 ~display_width:50
+      Hardcaml_waveterm.Waveform.expect waves ~wave_width:1 ~display_width:50
     ;;
 
     (* When [initial_delay=0], both [direct] and [delay] are set with [clock]s old value
