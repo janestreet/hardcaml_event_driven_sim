@@ -40,10 +40,7 @@ end = struct
     for _ = 1 to 20 do
       Event_driven_sim.Simulator.step simulator
     done;
-    Hardcaml_event_driven_sim.Waveterm.Waveform.expect
-      waves
-      ~wave_width:(-1)
-      ~display_width:40
+    Hardcaml_waveterm.Waveform.expect waves ~wave_width:(-1) ~display_width:40
   ;;
 end
 

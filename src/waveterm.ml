@@ -1,33 +1,27 @@
 open Base
+module M = Waveterm_intf.M
 module Sim = Event_driven_sim.Simulator
-module Events = Hardcaml_waveterm_event_store.Bits_store
-module Wave_port = Hardcaml_waveterm_kernel.Port
-module Wave_port_name = Hardcaml_waveterm_kernel.Port_name
-include Hardcaml_waveterm.Expert.Make (Events)
+module Events = Hardcaml.Wave_data_in_events.Bits
 
 module Make (Logic : Logic.S) = struct
   type t =
     { processes : Sim.Process.t list
-    ; waveform : Waveform.t
+    ; waveform : Hardcaml.Wave_data.t
     }
 
   let create_waves (ports_to_events : (Logic.t Port.t, Events.t) List.Assoc.t) =
-    let waves =
-      List.map ports_to_events ~f:(fun (port, events) ->
-        List.map port.mangled_names ~f:(fun name ->
-          Wave.create_from_signal name port.base_signal events))
-      |> List.concat
-    in
-    let ports =
-      List.map ports_to_events ~f:(fun (port, _) ->
-        List.map port.mangled_names ~f:(fun name ->
-          { Wave_port.type_ = Internal
-          ; port_name = Wave_port_name.of_string name
-          ; width = Hardcaml.Signal.width port.base_signal
-          }))
-      |> List.concat
-    in
-    Waveform.create_from_data ~waves ~ports
+    List.map ports_to_events ~f:(fun (port, events) ->
+      List.map port.mangled_names ~f:(fun name ->
+        { Hardcaml.Wave_data.Wave.name
+        ; width = Hardcaml.Signal.width port.base_signal
+        ; typ = Internal
+        ; wave_format = Hardcaml.Signal.Type.get_wave_format port.base_signal
+        ; is_pseudo_clock = false
+        ; wave_data = events
+        }))
+    |> List.concat
+    |> Array.of_list
+    |> Hardcaml.Wave_data.By_event
   ;;
 
   let create (signals_to_trace : Logic.t Port.t list) =

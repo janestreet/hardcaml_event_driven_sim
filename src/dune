@@ -1,7 +1,6 @@
 (library
  (name hardcaml_event_driven_sim)
  (public_name hardcaml_event_driven_sim)
- (libraries core event_driven_sim hardcaml hardcaml_waveterm
-   hardcaml_waveterm.event_store hardcaml_waveterm.kernel)
+ (libraries core event_driven_sim hardcaml)
  (preprocess
   (pps ppx_jane)))

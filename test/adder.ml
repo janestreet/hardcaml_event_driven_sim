@@ -66,45 +66,34 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
         ])
     in
     run ~time_limit:100 simulator;
-    Core.print_s [%message (waves : Waveterm.Waveform.t)];
-    Waveterm.Waveform.expect waves ~wave_width:(-3);
+    Core.print_s [%message (waves : Hardcaml_waveterm.Waveform.t)];
+    Hardcaml_waveterm.Waveform.expect waves ~wave_width:(-3);
     [%expect
       {|
       (waves
-       ((waves
-         ((Data (name a)
-           (data
-            ((t
-              ((data
-                (0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 "" "" "" "" ""
-                 ""))
-               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
-             (width 4) (max_time 90)))
-           (wave_format ((current (Bit_or Hex)) (default (Bit_or Hex))))
-           (text_alignment Left)
-           (style ((style ((bold false) (fg White) (bg Black))))))
-          (Data (name b)
-           (data
-            ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4)
-             (max_time 90)))
-           (wave_format ((current (Bit_or Hex)) (default (Bit_or Hex))))
-           (text_alignment Left)
-           (style ((style ((bold false) (fg White) (bg Black))))))
-          (Data (name c)
-           (data
-            ((t
-              ((data
-                (1000 1001 1010 1011 1100 1101 1110 1111 0000 0001 "" "" "" "" ""
-                 ""))
-               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
-             (width 4) (max_time 90)))
-           (wave_format ((current (Bit_or Hex)) (default (Bit_or Hex))))
-           (text_alignment Left)
-           (style ((style ((bold false) (fg White) (bg Black))))))))
-        (ports
-         (((type_ Internal) (port_name a) (width 4))
-          ((type_ Internal) (port_name b) (width 4))
-          ((type_ Internal) (port_name c) (width 4))))))
+       (By_event
+        (((name a) (width 4) (typ Internal) (wave_format (Bit_or Hex))
+          (is_pseudo_clock false)
+          (wave_data
+           ((t
+             ((data
+               (0000 0001 0010 0011 0100 0101 0110 0111 1000 1001 "" "" "" "" ""
+                ""))
+              (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
+            (width 4) (max_time 90))))
+         ((name b) (width 4) (typ Internal) (wave_format (Bit_or Hex))
+          (is_pseudo_clock false)
+          (wave_data
+           ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4) (max_time 90))))
+         ((name c) (width 4) (typ Internal) (wave_format (Bit_or Hex))
+          (is_pseudo_clock false)
+          (wave_data
+           ((t
+             ((data
+               (1000 1001 1010 1011 1100 1101 1110 1111 0000 0001 "" "" "" "" ""
+                ""))
+              (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
+            (width 4) (max_time 90)))))))
       ┌Signals────────┐┌Waves──────────────────────────────────────────────┐
       │               ││───╥──╥───┬──╥──╥───┬──╥──╥───┬                    │
       │a              ││ 0 ║1 ║2  │3 ║4 ║5  │6 ║7 ║8  │                    │

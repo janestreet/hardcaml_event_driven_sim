@@ -15,11 +15,10 @@ depends: [
   "core"
   "core_kernel"
   "hardcaml"
-  "hardcaml_waveterm"
   "ppx_jane"
-  "dune"              {>= "3.17.0"}
+  "dune"        {>= "3.17.0"}
 ]
-available: arch != "arm32" & arch != "x86_32"
+available: arch != "x86_32"
 synopsis: "Hardcaml Event Driven Simulator"
 description: "
 Event driven simulation for Hardcaml designs.

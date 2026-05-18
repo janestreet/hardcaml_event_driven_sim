@@ -166,7 +166,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
           ; port_name_is ~alignment:Right "waddr_rd" ~wave_format:Hex
           ]
       in
-      Hardcaml_event_driven_sim.Waveterm.Waveform.expect
+      Hardcaml_waveterm.Waveform.expect
         waves
         ~display_rules
         ~wave_width:(-40)
@@ -236,7 +236,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
       │waddr_rd          ││ 0                    ║3             ║6             ║5             ║0             ║1             ║3         │
       │                  ││──────────────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────────╨──────────│
       └──────────────────┘└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-      f3e6b921494d4e1a2828df4675d528e3
+      d68ef41c06486924688873f00e9494ad
       |}]
   ;;
 end
