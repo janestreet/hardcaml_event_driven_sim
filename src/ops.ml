@@ -60,26 +60,48 @@ module Make (Comb : Logic.S) = struct
     in
     let sim_enable = to_sim_signal_opt enable in
     let source_width = Signal.width source in
-    let value_or_zero value width =
-      Option.value
-        value
-        ~default:(Comb.create_signal ~initial_value:(Comb.zero width) width)
+    let value_or_zero =
+      let default =
+        Comb.create_signal ~initial_value:(Comb.zero source_width) source_width
+      in
+      fun value -> Option.value value ~default
+    in
+    let assign_with_optional_clear_or_enable =
+      match sim_clear, sim_enable with
+      | None, None ->
+        fun () -> if is_edge sim_clock clock_edge then sim_target <-- !!sim_source
+      | Some sim_clear, None ->
+        fun () ->
+          if is_edge sim_clock clock_edge
+          then
+            if to_bool sim_clear
+            then sim_target <-- !!(value_or_zero sim_clear_to)
+            else sim_target <-- !!sim_source
+      | None, Some sim_enable ->
+        fun () ->
+          if is_edge sim_clock clock_edge
+          then if to_bool sim_enable then sim_target <-- !!sim_source
+      | Some sim_clear, Some sim_enable ->
+        fun () ->
+          if is_edge sim_clock clock_edge
+          then
+            if to_bool sim_clear
+            then sim_target <-- !!(value_or_zero sim_clear_to)
+            else if to_bool sim_enable
+            then sim_target <-- !!sim_source
+    in
+    (* Optionally add in the reset signal *)
+    let assign_with_optional_reset =
+      match sim_reset with
+      | None -> assign_with_optional_clear_or_enable
+      | Some sim_reset ->
+        fun () ->
+          if Bool.( = ) (to_bool sim_reset) (level_to_bool reset_level)
+          then sim_target <-- !!(value_or_zero sim_reset_to)
+          else assign_with_optional_clear_or_enable ()
     in
     [ ( List.filter_opt [ Some !&sim_clock; Option.map ~f:( !& ) sim_reset ]
-      , fun () ->
-          if match sim_reset with
-             | Some sim_reset_v ->
-               Bool.( = ) (to_bool sim_reset_v) (level_to_bool reset_level)
-             | None -> false
-          then sim_target <-- !!(value_or_zero sim_reset_to source_width)
-          else if is_edge sim_clock clock_edge
-          then
-            if match sim_clear with
-               | Some sim_clear_v -> to_bool sim_clear_v
-               | None -> false
-            then sim_target <-- !!(value_or_zero sim_clear_to source_width)
-            else if Option.value_map sim_enable ~default:true ~f:to_bool
-            then sim_target <-- !!sim_source )
+      , assign_with_optional_reset )
     ]
   ;;
 
@@ -141,7 +163,16 @@ module Make (Comb : Logic.S) = struct
       let deps =
         Signal.Type.Deps.map signal ~f:(Fn.compose Simulator.Signal.id to_sim_signal)
       in
-      [ (deps, fun () -> ( <--- ) sim_signal (eval_f ()) ~delay) ]
+      let process =
+        (* If scheduling a delta step (delay=0) and the value is unchanged don't schedule
+           an event *)
+        if Int.equal delay 0
+        then (fun () ->
+          let next = eval_f () in
+          if not (Comb.equal !!sim_signal next) then ( <--- ) sim_signal next ~delay:0)
+        else fun () -> ( <--- ) sim_signal (eval_f ()) ~delay
+      in
+      [ deps, process ]
     in
     match (signal : Signal.t) with
     | Empty -> failwith "can't compile empty signal"
@@ -612,7 +643,13 @@ module Make (Comb : Logic.S) = struct
         bits := Comb.to_bits_exn (Simulator.Signal.read signal))
     in
     let write_outputs () =
-      Array.iter outputs ~f:(fun (signal, bits) -> signal <-- Comb.of_bits !bits)
+      Array.iter outputs ~f:(fun (signal, bits) ->
+        let new_bits = !bits in
+        if not
+             (Hardcaml.Bits.equal
+                new_bits
+                (Simulator.Signal.read signal |> Comb.to_bits_exn))
+        then signal <-- Comb.of_bits new_bits)
     in
     let recompute_comb () =
       read_inputs ();
