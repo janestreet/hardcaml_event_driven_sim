@@ -7,7 +7,11 @@ module M (Logic : Logic.S) = struct
       ; waveform : Hardcaml.Wave_data.t
       }
 
-    val create : Logic.t Port.t list -> t
+    val create
+      :  inputs:Logic.t Port.t list
+      -> outputs:Logic.t Port.t list
+      -> internal:Logic.t Port.t list
+      -> t
   end
 end
 

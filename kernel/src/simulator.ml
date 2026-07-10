@@ -90,8 +90,41 @@ module Scheduled_event = struct
   [@@deriving sexp_of, fields ~getters]
 
   let compare a b =
-    Comparable.lift [%compare: int * int] ~f:(fun t -> t.time, t.sequential_id) a b
+    match Int.compare a.time b.time with
+    | 0 -> Int.compare a.sequential_id b.sequential_id
+    | by_time -> by_time
   ;;
+end
+
+module Event_queue = struct
+  type t =
+    { mutable elts : (unit -> unit) array
+    ; mutable length : int
+    }
+
+  let dummy_elt () = ()
+  let create () = { elts = Array.create ~len:64 dummy_elt; length = 0 }
+  let[@inline] is_empty t = t.length = 0
+  let[@inline] length t = t.length
+
+  let[@inline] enqueue t x =
+    let len = Array.length t.elts in
+    if t.length = len
+    then (
+      let new_elts = Array.create ~len:(len * 2) dummy_elt in
+      Array.blit ~src:t.elts ~src_pos:0 ~dst:new_elts ~dst_pos:0 ~len;
+      t.elts <- new_elts);
+    t.elts.(t.length) <- x;
+    t.length <- t.length + 1
+  ;;
+
+  let[@inline] iter t ~f =
+    for i = 0 to t.length - 1 do
+      f t.elts.(i)
+    done
+  ;;
+
+  let[@inline] clear t = t.length <- 0
 end
 
 type simulation_callbacks =
@@ -105,9 +138,9 @@ type simulation_callbacks =
    claim, though.
 *)
 type t =
-  { mutable delta_updates : Scheduled_event.t Queue.t
+  { mutable delta_updates : Event_queue.t
       (* keep second queue to avoid allocating every delta step *)
-  ; mutable delta_updates_now : Scheduled_event.t Queue.t
+  ; mutable delta_updates_now : Event_queue.t
   ; updates : Scheduled_event.t Pairing_heap.t
   ; mutable current_step : Delta_step.t
   ; mutable current_sequential_id : int
@@ -118,18 +151,19 @@ type t =
 [@@deriving fields ~getters]
 
 let schedule_call t ~delay ~f =
-  let scheduled_update =
-    { Scheduled_event.f
-    ; time = delay + t.current_step.time
-    ; sequential_id = t.current_sequential_id
-    }
-  in
-  t.current_sequential_id <- t.current_sequential_id + 1;
   match Int.sign delay with
   | Sign.Neg ->
     raise_s [%message "cannot schedule update with negative delay" (delay : int)]
-  | Sign.Zero -> Queue.enqueue t.delta_updates scheduled_update
-  | Sign.Pos -> Pairing_heap.add t.updates scheduled_update
+  | Sign.Zero -> Event_queue.enqueue t.delta_updates f
+  | Sign.Pos ->
+    let scheduled_update =
+      { Scheduled_event.f
+      ; time = delay + t.current_step.time
+      ; sequential_id = t.current_sequential_id
+      }
+    in
+    t.current_sequential_id <- t.current_sequential_id + 1;
+    Pairing_heap.add t.updates scheduled_update
 ;;
 
 let invoke_on_change_callbacks (type value) (signal : value Signal.t) =
@@ -177,16 +211,29 @@ let apply_update
       Hashtbl.set signal.values ~key:process_id ~data:value;
       resolve_func ~last_value:signal.current_value (Hashtbl.data signal.values)
   in
-  if not (Delta_step.equal signal.last_change simulator.current_step)
+  (* small behavior change: previously a no-op update (value equal to current) would still
+     refresh [last_value] to [current_value] (via the inner branch on the first hit in a
+     delta step).
+
+     Now [last_value] is left untouched on no-ops. I think the new semantics are actually
+     cleaner — [last_value] tracks the last *real* prior value — but [Signal.read_last] is
+     exposed (e.g. used by [Ops.is_edge]) so external callers reading [last_value] outside
+     an [on_change] callback may observe a difference.
+
+     This does not affect any simulation behaviour we can observe in current tests.
+  *)
+  if not (Value.( = ) new_current_value signal.current_value)
   then (
-    (* first update in delta step *)
-    maybe_invoke_on_change_callbacks signal;
-    signal.scheduled_invoke_callbacks <- true;
-    schedule_call simulator ~delay:0 ~f:(fun () ->
-      maybe_invoke_on_change_callbacks signal);
-    signal.last_change <- simulator.current_step;
-    signal.last_value <- signal.current_value);
-  signal.current_value <- new_current_value
+    if not (Delta_step.equal signal.last_change simulator.current_step)
+    then (
+      (* first update in delta step *)
+      maybe_invoke_on_change_callbacks signal;
+      signal.scheduled_invoke_callbacks <- true;
+      schedule_call simulator ~delay:0 ~f:(fun () ->
+        maybe_invoke_on_change_callbacks signal);
+      signal.last_change <- simulator.current_step;
+      signal.last_value <- signal.current_value);
+    signal.current_value <- new_current_value)
 ;;
 
 let[@inline] schedule_update
@@ -213,16 +260,16 @@ let rec progress_time_to t new_time =
   with
   | None -> ()
   | Some new_update ->
-    Queue.enqueue t.delta_updates new_update;
+    Event_queue.enqueue t.delta_updates new_update.f;
     progress_time_to t new_time
 ;;
 
-let has_delta_updates t = not (Queue.is_empty t.delta_updates)
+let has_delta_updates t = not (Event_queue.is_empty t.delta_updates)
 
 let progress_time t =
   (* Move updates for a next time step from [updates] heap to [delta_update] queue and
      bump current_step. *)
-  assert (Queue.length t.delta_updates = 0);
+  assert (Event_queue.length t.delta_updates = 0);
   match Pairing_heap.top t.updates with
   | None -> ()
   | Some next_update ->
@@ -413,8 +460,8 @@ let create (processes : Process.t list) =
     List.mapi processes ~f:(fun process_id process -> process_id, process)
   in
   let t =
-    { delta_updates = Queue.create ()
-    ; delta_updates_now = Queue.create ()
+    { delta_updates = Event_queue.create ()
+    ; delta_updates_now = Event_queue.create ()
     ; updates = Pairing_heap.create ~cmp:Scheduled_event.compare ()
     ; current_step = Delta_step.zero
     ; current_sequential_id = 1
@@ -443,15 +490,15 @@ let delta_step t =
   t.delta_updates <- t.delta_updates_now;
   t.delta_updates_now <- updates;
   (* run scheduled functions - updates signals and runs async delayed deferreds *)
-  Queue.iter updates ~f:(fun event -> Scheduled_event.f event ());
-  Queue.clear updates;
+  Event_queue.iter updates ~f:(fun f -> f ());
+  Event_queue.clear updates;
   (* run triggered processes - based on their sensitivity lists *)
   Global_state.current_process_id := None;
   Global_state.current_simulator := None
 ;;
 
 let next_scheduled_time t =
-  if Queue.length t.delta_updates <> 0
+  if Event_queue.length t.delta_updates <> 0
   then Some (current_time t)
   else (
     match Pairing_heap.top t.updates with
@@ -461,7 +508,7 @@ let next_scheduled_time t =
 
 let rec step t =
   delta_step t;
-  if Queue.length t.delta_updates = 0
+  if Event_queue.length t.delta_updates = 0
   then (
     List.iter t.simulation_callbacks.at_end_of_time_step ~f:(fun f -> f ());
     progress_time t)
@@ -475,12 +522,12 @@ let step t =
 
 let rec stabilise t =
   step t;
-  if Queue.length t.delta_updates <> 0 then stabilise t
+  if Event_queue.length t.delta_updates <> 0 then stabilise t
 ;;
 
 let rec run t ~time_limit =
   step t;
-  if current_time t < time_limit && Queue.length t.delta_updates <> 0
+  if current_time t < time_limit && Event_queue.length t.delta_updates <> 0
   then run t ~time_limit
 ;;
 

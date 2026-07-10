@@ -149,7 +149,10 @@ struct
       create ?config f
     in
     let { Waveterm.processes = waveterm_processes; waveform } =
-      Waveterm.create (Input.to_list input @ Output.to_list output @ internal)
+      Waveterm.create
+        ~inputs:(Input.to_list input)
+        ~outputs:(Output.to_list output)
+        ~internal
     in
     let testbench_processes = testbench input output in
     let simulator =

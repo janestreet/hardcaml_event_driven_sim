@@ -72,7 +72,7 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
       {|
       (waves
        (By_event
-        (((name a) (width 4) (typ Internal) (wave_format (Bit_or Hex))
+        (((name a) (width 4) (typ Input) (wave_format (Bit_or Hex))
           (is_pseudo_clock false)
           (wave_data
            ((t
@@ -81,11 +81,11 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
                 ""))
               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
             (width 4) (max_time 90))))
-         ((name b) (width 4) (typ Internal) (wave_format (Bit_or Hex))
+         ((name b) (width 4) (typ Input) (wave_format (Bit_or Hex))
           (is_pseudo_clock false)
           (wave_data
            ((t ((data (1000 "")) (time (0 0)) (length 1))) (width 4) (max_time 90))))
-         ((name c) (width 4) (typ Internal) (wave_format (Bit_or Hex))
+         ((name c) (width 4) (typ Output) (wave_format (Bit_or Hex))
           (is_pseudo_clock false)
           (wave_data
            ((t
@@ -95,15 +95,15 @@ module Test (Simulator : Hardcaml_event_driven_sim.S) = struct
               (time (0 10 20 30 40 50 60 70 80 90 0 0 0 0 0 0)) (length 10)))
             (width 4) (max_time 90)))))))
       ┌Signals────────┐┌Waves──────────────────────────────────────────────┐
-      │               ││───╥──╥───┬──╥──╥───┬──╥──╥───┬                    │
-      │a              ││ 0 ║1 ║2  │3 ║4 ║5  │6 ║7 ║8  │                    │
-      │               ││───╨──╨───┴──╨──╨───┴──╨──╨───┴                    │
+      │               ││───┬──┬───┬──┬──┬───┬──┬──┬───┬                    │
+      │a              ││ 0 │1 │2  │3 │4 │5  │6 │7 │8  │                    │
+      │               ││───┴──┴───┴──┴──┴───┴──┴──┴───┴                    │
       │               ││───────────────────────────────                    │
       │b              ││ 8                                                 │
       │               ││───────────────────────────────                    │
-      │               ││───╥──╥───┬──╥──╥───┬──╥──╥───┬                    │
-      │c              ││ 8 ║9 ║A  │B ║C ║D  │E ║F ║0  │                    │
-      │               ││───╨──╨───┴──╨──╨───┴──╨──╨───┴                    │
+      │               ││───┬──┬───┬──┬──┬───┬──┬──┬───┬                    │
+      │c              ││ 8 │9 │A  │B │C │D  │E │F │0  │                    │
+      │               ││───┴──┴───┴──┴──┴───┴──┴──┴───┴                    │
       └───────────────┘└───────────────────────────────────────────────────┘
       deacc79608dafd064470bfe1e9ae2338
       |}]
